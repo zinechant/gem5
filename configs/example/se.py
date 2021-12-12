@@ -256,7 +256,6 @@ if args.ruby:
         # Connect the cpu's cache ports to Ruby
         ruby_port.connectCpuPorts(system.cpu[i])
 else:
-    MemClass = Simulation.setMemClass(args)
     system.membus = SystemXBar()
     system.system_port = system.membus.cpu_side_ports
     CacheConfig.config_cache(args, system)
@@ -269,4 +268,12 @@ if args.wait_gdb:
     system.workload.wait_for_remote_gdb = True
 
 root = Root(full_system = False, system = system)
+Simulation.initialize(args, root, system, FutureClass)
+
+# bool map(Addr vaddr, Addr paddr, int size, bool cacheable = true);
+scratchpad_start = Addr(args.scratchpad_addr)
+scratchpad_size = Addr(args.scratchpad_size).value
+for process in multiprocesses:
+    process.map(scratchpad_start, scratchpad_start, scratchpad_size)
+
 Simulation.run(args, root, system, FutureClass)

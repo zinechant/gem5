@@ -129,9 +129,33 @@ def config_cache(options, system):
         system.memchecker = MemChecker()
 
     for i in range(options.num_cpus):
+        scratchpad = None
+        scratchpad_start = Addr(options.scratchpad_addr).value
+        scratchpad_size = Addr(options.scratchpad_size).value
+        scratchpad_end = scratchpad_start + scratchpad_size
+
+        if options.scratchpad:
+            scratchpad = SimpleMemory()
+            scratchpad.range = AddrRange(start=scratchpad_start,
+                                         size=scratchpad_size)
+            scratchpad.latency = Latency(Frequency(options.cpu_clock)) *\
+                options.scratchpad_cycles
+            scratchpad.bandwidth = MemoryBandwidth(
+                str(Frequency(options.cpu_clock).value *
+                options.scratchpad_ports * 4 //
+                options.scratchpad_cycles) + "B/s")
+
         if options.caches:
             icache = icache_class(**_get_cache_opts('l1i', options))
             dcache = dcache_class(**_get_cache_opts('l1d', options))
+            icache.addr_ranges = [
+                AddrRange(start=0, size=scratchpad_start),
+                AddrRange(start=scratchpad_end, size=Addr.max - scratchpad_end)
+            ]
+            dcache.addr_ranges = [
+                AddrRange(start=0, size=scratchpad_start),
+                AddrRange(start=scratchpad_end, size=Addr.max - scratchpad_end)
+            ]
 
             # If we have a walker cache specified, instantiate two
             # instances here
@@ -160,7 +184,8 @@ def config_cache(options, system):
             # When connecting the caches, the clock is also inherited
             # from the CPU in question
             system.cpu[i].addPrivateSplitL1Caches(icache, dcache,
-                                                  iwalkcache, dwalkcache)
+                                                  iwalkcache, dwalkcache,
+                                                  scratchpad)
 
             if options.memchecker:
                 # The mem_side ports of the caches haven't been connected yet.
@@ -169,6 +194,7 @@ def config_cache(options, system):
                 system.cpu[i].dcache_mon = dcache_mon
 
         elif options.external_memory_system:
+            assert not options.scratchpad, "External scratchpad not supported"
             # These port names are presented to whatever 'external' system
             # gem5 is connecting to.  Its configuration will likely depend
             # on these names.  For simplicity, we would advise configuring
