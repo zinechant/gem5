@@ -170,12 +170,11 @@ class BaseCPU(ClockedObject):
             bus.cpu_side_ports, bus.mem_side_ports)
 
     def addPrivateSplitL1Caches(self, ic, dc, iwc = None, dwc = None,
-                                scratchpad=None):
+                                scratchpad=None, streambuffer=None):
         self.icache = ic
         self.dcache = dc
 
-        if scratchpad:
-            self.scratchpad = scratchpad
+        if scratchpad or streambuffer:
             self.ixbar = NoncoherentXBar()
             self.ixbar.frontend_latency = 0
             self.ixbar.forward_latency = 0
@@ -190,21 +189,36 @@ class BaseCPU(ClockedObject):
             self.dxbar.header_latency = 0
             self.dxbar.width = 0
 
-            self.sxbar = NoncoherentXBar()
-            self.sxbar.frontend_latency = 0
-            self.sxbar.forward_latency = 0
-            self.sxbar.response_latency = 0
-            self.sxbar.header_latency = 0
-            self.sxbar.width = 0
-
             self.icache_port = self.ixbar.cpu_side_ports
             self.dcache_port = self.dxbar.cpu_side_ports
-            self.ixbar.mem_side_ports = self.sxbar.cpu_side_ports
-            self.dxbar.mem_side_ports = self.sxbar.cpu_side_ports
-            self.sxbar.mem_side_ports = scratchpad.port
-
             self.ixbar.mem_side_ports = ic.cpu_side
             self.dxbar.mem_side_ports = dc.cpu_side
+
+            if streambuffer:
+                self.streambuffer = streambuffer
+                self.bxbar = NoncoherentXBar()
+                self.bxbar.frontend_latency = 0
+                self.bxbar.forward_latency = 0
+                self.bxbar.response_latency = 0
+                self.bxbar.header_latency = 0
+                self.bxbar.width = 0
+
+                self.ixbar.mem_side_ports = self.bxbar.cpu_side_ports
+                self.dxbar.mem_side_ports = self.bxbar.cpu_side_ports
+                self.bxbar.mem_side_ports = streambuffer.port
+
+            if scratchpad:
+                self.scratchpad = scratchpad
+                self.sxbar = NoncoherentXBar()
+                self.sxbar.frontend_latency = 0
+                self.sxbar.forward_latency = 0
+                self.sxbar.response_latency = 0
+                self.sxbar.header_latency = 0
+                self.sxbar.width = 0
+
+                self.ixbar.mem_side_ports = self.sxbar.cpu_side_ports
+                self.dxbar.mem_side_ports = self.sxbar.cpu_side_ports
+                self.sxbar.mem_side_ports = scratchpad.port
 
         else:
             self.icache_port = ic.cpu_side

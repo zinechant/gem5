@@ -160,6 +160,12 @@ def addNoISAOptions(parser):
     parser.add_argument("--scratchpad_cycles", type=int, default=1)
     parser.add_argument("--scratchpad_ports", type=int, default=16)
 
+    parser.add_argument("--streambuffer", action="store_true")
+    parser.add_argument("--streambuffer_addr", type=str, default="1025GiB")
+    parser.add_argument("--streambuffer_size", type=str, default="1GiB")
+    parser.add_argument("--streambuffer_cycles", type=int, default=1)
+    parser.add_argument("--streambuffer_ports", type=int, default=16)
+
     # Enable Ruby
     parser.add_argument("--ruby", action="store_true")
 
