@@ -133,6 +133,7 @@ def config_cache(options, system):
 
     for i in range(options.num_cpus):
         scratchpad = None
+        scratchpad_monitor = None
         scratchpad_start = Addr(options.scratchpad_addr).value
         scratchpad_size = Addr(options.scratchpad_size).value
         scratchpad_end = scratchpad_start + scratchpad_size
@@ -150,8 +151,14 @@ def config_cache(options, system):
                     Frequency(options.cpu_clock).value *
                     options.scratchpad_ports * 4 //
                     options.scratchpad_cycles) + "B/s")
+            if options.scratchpad_trace:
+                scratchpad_monitor = CommMonitor()
+                scratchpad_monitor.trace = MemTraceProbe(
+                    trace_file="scratchpad.pb")
+                scratchpad_monitor.mem_side_port = scratchpad.port
 
         streambuffer = None
+        streambuffer_monitor = None
         streambuffer_start = Addr(options.streambuffer_addr).value
         streambuffer_size = Addr(options.streambuffer_size).value
         streambuffer_end = streambuffer_start + streambuffer_size
@@ -171,6 +178,11 @@ def config_cache(options, system):
                     Frequency(options.cpu_clock).value *
                     options.streambuffer_ports * 4 //
                     options.streambuffer_cycles) + "B/s")
+            if options.scratchpad_trace:
+                streambuffer_monitor = CommMonitor()
+                streambuffer_monitor.trace = MemTraceProbe(
+                    trace_file="streambuffer.pb")
+                streambuffer_monitor.mem_side_port = streambuffer.port
 
         if options.caches:
             icache = icache_class(**_get_cache_opts('l1i', options))
@@ -216,7 +228,9 @@ def config_cache(options, system):
             # from the CPU in question
             system.cpu[i].addPrivateSplitL1Caches(icache, dcache, iwalkcache,
                                                   dwalkcache, scratchpad,
-                                                  streambuffer)
+                                                  scratchpad_monitor,
+                                                  streambuffer,
+                                                  streambuffer_monitor)
 
             if options.memchecker:
                 # The mem_side ports of the caches haven't been connected yet.

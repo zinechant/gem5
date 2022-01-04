@@ -170,7 +170,8 @@ class BaseCPU(ClockedObject):
             bus.cpu_side_ports, bus.mem_side_ports)
 
     def addPrivateSplitL1Caches(self, ic, dc, iwc = None, dwc = None,
-                                scratchpad=None, streambuffer=None):
+                                scratchpad=None, scratchpad_monitor=None,
+                                streambuffer=None, streambuffer_monitor=None):
         self.icache = ic
         self.dcache = dc
 
@@ -205,7 +206,12 @@ class BaseCPU(ClockedObject):
 
                 self.ixbar.mem_side_ports = self.bxbar.cpu_side_ports
                 self.dxbar.mem_side_ports = self.bxbar.cpu_side_ports
-                self.bxbar.mem_side_ports = streambuffer.port
+                if streambuffer_monitor:
+                    self.streambuffer_monitor = streambuffer_monitor
+                    self.bxbar.mem_side_ports = \
+                        streambuffer_monitor.cpu_side_port
+                else:
+                    self.bxbar.mem_side_ports = streambuffer.port
 
             if scratchpad:
                 self.scratchpad = scratchpad
@@ -218,7 +224,12 @@ class BaseCPU(ClockedObject):
 
                 self.ixbar.mem_side_ports = self.sxbar.cpu_side_ports
                 self.dxbar.mem_side_ports = self.sxbar.cpu_side_ports
-                self.sxbar.mem_side_ports = scratchpad.port
+                if scratchpad_monitor:
+                    self.scratchpad_monitor = scratchpad_monitor
+                    self.sxbar.mem_side_ports = \
+                        scratchpad_monitor.cpu_side_port
+                else:
+                    self.sxbar.mem_side_ports = scratchpad.port
 
         else:
             self.icache_port = ic.cpu_side
