@@ -178,7 +178,7 @@ def config_cache(options, system):
                     Frequency(options.cpu_clock).value *
                     options.streambuffer_ports * 4 //
                     options.streambuffer_cycles) + "B/s")
-            if options.scratchpad_trace:
+            if options.streambuffer_trace:
                 streambuffer_monitor = CommMonitor()
                 streambuffer_monitor.trace = MemTraceProbe(
                     trace_file="streambuffer.pb")
