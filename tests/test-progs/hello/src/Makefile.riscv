@@ -1,0 +1,22 @@
+SRC_SRCS = $(shell ls *.c)
+SRC_OBJS = $(SRC_SRCS:.c=.o)
+
+SRCS = $(SRC_SRCS) $(TEST_SRCS)
+OBJS = $(SRC_OBJS) $(TEST_OBJS)
+
+CC = clang
+OPT ?= -O3
+INCLUDE =
+
+TARGET = hello
+
+CFLAGS = -std=c17 -static -fPIC -Wall -Wextra $(INCLUDE) $(OPT)
+CFLAGS += --gcc-toolchain=${RISCV} --target=riscv64 -march=rv64im -mabi=lp64
+
+
+$(TARGET): ${OBJS}
+	$(CC) $(CFLAGS) -o $@ $^ $(LINK) $(LIB)
+
+.phony: clean
+clean:
+	rm -rf $(TARGET) $(OBJS)
