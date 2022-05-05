@@ -1,0 +1,16 @@
+
+Import('*')
+
+if env['HAVE_SIMPLESSD']:
+    Source('bil/noop_scheduler.cc')
+    Source('bil/entry.cc')
+    Source('sil/none/none.cc')
+    Source('sil/nvme/nvme.cc')
+    Source('sil/nvme/prp.cc')
+    Source('sil/nvme/queue.cc')
+    Source('sim/engine.cc')
+    Source('util/convert.cc')
+    Source('util/print.cc')
+    Source('util/stopwatch.cc')
+    Source('stream_ssd.cc')
+    Source('block_stream.cc')

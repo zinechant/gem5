@@ -119,6 +119,11 @@ if env['HAVE_DRAMSIM3']:
     Source('dramsim3_wrapper.cc')
     Source('dramsim3.cc')
 
+if env['HAVE_SIMPLESSD']:
+    SimObject('StreamMemory.py', sim_objects=['StreamMemory'])
+    Source('stream_mem.cc')
+    DebugFlag('StreamMemory')
+
 SimObject('MemChecker.py', sim_objects=['MemChecker', 'MemCheckerMonitor'])
 Source('mem_checker.cc')
 Source('mem_checker_monitor.cc')

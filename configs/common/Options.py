@@ -162,6 +162,7 @@ def addNoISAOptions(parser):
     parser.add_argument("--scratchpad_trace", action="store_true")
 
     parser.add_argument("--streambuffer", action="store_true")
+    parser.add_argument("--streamssd", action="store_true")
     parser.add_argument("--streambuffer_addr", type=str, default="1025GiB")
     parser.add_argument("--streambuffer_size", type=str, default="1GiB")
     parser.add_argument("--streambuffer_cycles", type=int, default=1)

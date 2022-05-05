@@ -168,7 +168,8 @@ def config_cache(options, system):
             else:
                 addr_hole = (streambuffer_start, streambuffer_end)
 
-            streambuffer = SimpleMemory()
+            streambuffer = (StreamMemory()
+                            if options.streamssd else SimpleMemory())
             streambuffer.range = AddrRange(start=streambuffer_start,
                                            size=streambuffer_size)
             streambuffer.latency = Latency(Frequency(options.cpu_clock)) *\
@@ -275,6 +276,7 @@ def config_cache(options, system):
 # The 'ExternalCache' class provides this adaptation by rewriting the name,
 # eliminating distracting changes elsewhere in the config code.
 class ExternalCache(ExternalSlave):
+
     def __getattr__(cls, attr):
         if (attr == "cpu_side"):
             attr = "port"
@@ -287,6 +289,7 @@ class ExternalCache(ExternalSlave):
 
 
 def ExternalCacheFactory(port_type):
+
     def make(name):
         return ExternalCache(port_data=name,
                              port_type=port_type,
