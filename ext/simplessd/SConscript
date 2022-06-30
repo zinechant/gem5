@@ -38,26 +38,26 @@
 
 import os
 
-Import('main')
+Import('env')
 
 
 # See if we got a cloned DRAMSim3 repo as a subdirectory and set the
 # HAVE_DRAMSIM flag accordingly
 if not os.path.exists(Dir('.').srcnode().abspath + '/simplessd'):
-    main['HAVE_SIMPLESSD'] = False
+    env['HAVE_SIMPLESSD'] = False
     Return()
 elif not os.path.exists(Dir('.').srcnode().abspath + '/build'):
-    main['HAVE_SIMPLESSD'] = False
+    env['HAVE_SIMPLESSD'] = False
     Return()
 
 # We have got the folder, so add the library and build the wrappers
-main['HAVE_SIMPLESSD'] = True
+env['HAVE_SIMPLESSD'] = True
 
 
 simplessd_path = os.path.join(Dir('#').abspath, 'ext/simplessd/')
 
-main.Prepend(CPPPATH=Dir('.'))
+env.Prepend(CPPPATH=Dir('.'))
 # a littel hacky but can get a shared library working
-main.Append(LIBS=['simplessd'],
+env.Append(LIBS=['simplessd'],
             LIBPATH=[os.path.join(simplessd_path, 'build')],  # compile-time lookup
             CPPPATH=[simplessd_path, os.path.join(simplessd_path, 'simplessd')])

@@ -445,11 +445,11 @@ def operands {{
     'AA64FpUreg0': VectorReg('VECREG_UREG0', 'AA64FpUreg0'),
 
     # VarSIMD meta register
-    'AA64VSMetaS1': vectorReg('op1 + VECMETAOFFSET', 'AA64VSMetaS1'),
-    'AA64VSMetaS2': vectorReg('op2 + VECMETAOFFSET', 'AA64VSMetaS2'),
-    'AA64VSMetaS3': vectorReg('op3 + VECMETAOFFSET', 'AA64VSMetaS3'),
-    'AA64VSMetaD1': vectorReg('dest + VECMETAOFFSET', 'AA64VSMetaD1'),
-    'AA64VSMetaD2': vectorReg('dest2 + VECMETAOFFSET', 'AA64VSMetaD2'),
+    'AA64VSMetaS1': VectorReg('op1 + VECMETAOFFSET', 'AA64VSMetaS1'),
+    'AA64VSMetaS2': VectorReg('op2 + VECMETAOFFSET', 'AA64VSMetaS2'),
+    'AA64VSMetaS3': VectorReg('op3 + VECMETAOFFSET', 'AA64VSMetaS3'),
+    'AA64VSMetaD1': VectorReg('dest + VECMETAOFFSET', 'AA64VSMetaD1'),
+    'AA64VSMetaD2': VectorReg('dest2 + VECMETAOFFSET', 'AA64VSMetaD2'),
 
     # Predicate register operands
     'GpOp': VecPredReg('gp'),
