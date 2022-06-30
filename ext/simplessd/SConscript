@@ -46,6 +46,9 @@ Import('main')
 if not os.path.exists(Dir('.').srcnode().abspath + '/simplessd'):
     main['HAVE_SIMPLESSD'] = False
     Return()
+elif not os.path.exists(Dir('.').srcnode().abspath + '/build'):
+    main['HAVE_SIMPLESSD'] = False
+    Return()
 
 # We have got the folder, so add the library and build the wrappers
 main['HAVE_SIMPLESSD'] = True

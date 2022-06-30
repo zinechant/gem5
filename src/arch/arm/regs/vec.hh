@@ -77,7 +77,10 @@ const int NumVecV7ArchRegs  = 16; // Q0-Q15
 const int NumVecV8ArchRegs  = 32; // V0-V31
 const int NumVecSpecialRegs = 8;
 const int NumVecIntrlvRegs = 4;
-const int NumVecRegs = NumVecV8ArchRegs + NumVecSpecialRegs + NumVecIntrlvRegs;
+const int NumVecMetaRegs = 32;
+const int VECMETAOFFSET = NumVecV8ArchRegs + NumVecSpecialRegs +
+    NumVecIntrlvRegs;
+const int NumVecRegs = VECMETAOFFSET + NumVecMetaRegs;
 const int NumVecPredRegs = 18;  // P0-P15, FFR, UREG0
 
 // Vec, PredVec indices
