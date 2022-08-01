@@ -123,6 +123,46 @@ class %(class_name)s : public %(base_class)s
 };
 }};
 
+def template VSUnaryPredOpDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
+
+  public:
+    // Constructor
+    %(class_name)s(ExtMachInst machInst,
+                   RegIndex _dest, RegIndex _op1, RegIndex _gp) :
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s,
+                       _dest, _op1, _gp)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
+def template VSUnaryUnpredOpDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
+
+  public:
+    // Constructor
+    %(class_name)s(ExtMachInst machInst, RegIndex _dest, RegIndex _op1) :
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s, _dest, _op1)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
 def template SveShiftAndInsertOpDeclare {{
 template <class _Element>
 class %(class_name)s : public %(base_class)s
@@ -199,6 +239,47 @@ class %(class_name)s : public %(base_class)s
 };
 }};
 
+def template VSWideImmUnpredOpDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
+
+  public:
+    // Constructor
+    %(class_name)s(ExtMachInst machInst, RegIndex _dest, uint64_t _imm) :
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s, _dest, _imm)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
+def template VSWideImmPredOpDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
+
+  public:
+    // Constructor
+    %(class_name)s(ExtMachInst machInst,
+                   RegIndex _dest, uint64_t _imm, RegIndex _gp,
+                   bool _isMerging=true) :
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s,
+                       _dest, _imm, _gp, _isMerging)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
 def template SveBinImmUnpredOpDeclare {{
 template <class _Element>
 class %(class_name)s : public %(base_class)s
@@ -235,6 +316,48 @@ class %(class_name)s : public %(base_class)s
   protected:
     typedef _Element Element;
     typedef _Element TPElem;
+
+  public:
+    // Constructor
+    %(class_name)s(ExtMachInst machInst,
+                   RegIndex _dest, uint64_t _imm, RegIndex _gp) :
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s,
+                       _dest, _imm, _gp)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
+def template VSBinImmUnpredOpDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
+
+  public:
+    // Constructor
+    %(class_name)s(ExtMachInst machInst,
+                   RegIndex _dest, RegIndex _op1, uint64_t _imm)
+        : %(base_class)s("%(mnemonic)s", machInst, %(op_class)s,
+                         _dest, _op1, _imm)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
+def template VSBinImmPredOpDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
 
   public:
     // Constructor
@@ -314,6 +437,70 @@ class %(class_name)s : public %(base_class)s
   protected:
     typedef _Element Element;
     typedef _Element TPElem;
+
+  public:
+    // Constructor
+    %(class_name)s(ExtMachInst machInst,
+                   RegIndex _dest, RegIndex _op1, RegIndex _op2) :
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s,
+                       _dest, _op1, _op2)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
+def template VSBinDestrPredOpDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
+
+  public:
+    // Constructor
+    %(class_name)s(ExtMachInst machInst,
+                   RegIndex _dest, RegIndex _op2, RegIndex _gp) :
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s,
+                       _dest, _op2, _gp)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
+def template VSBinConstrPredOpDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
+
+  public:
+    // Constructor
+    %(class_name)s(ExtMachInst machInst,
+                   RegIndex _dest, RegIndex _op1, RegIndex _op2,
+                   RegIndex _gp, SvePredType _predType) :
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s,
+                       _dest, _op1, _op2, _gp, _predType)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
+def template VSBinUnpredOpDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
 
   public:
     // Constructor
@@ -461,6 +648,27 @@ class %(class_name)s : public %(base_class)s
 };
 }};
 
+def template VSIntCmpOpDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
+
+  public:
+    // Constructor
+    %(class_name)s(ExtMachInst machInst, RegIndex _dest,
+                   RegIndex _op1, RegIndex _op2, RegIndex _gp) :
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s,
+                       _dest, _op1, _op2, _gp, %(op2IsWide)s)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
 def template SveTerPredOpDeclare {{
 template <class _Element>
 class %(class_name)s : public %(base_class)s
@@ -523,6 +731,27 @@ class %(class_name)s : public %(base_class)s
   protected:
     typedef _Element Element;
     typedef _Element TPElem;
+
+  public:
+    // Constructor
+    %(class_name)s(ExtMachInst machInst, RegIndex _dest,
+                   RegIndex _op1, RegIndex _gp) :
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s,
+                       _dest, _op1, _gp)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
+def template VSReducOpDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
 
   public:
     // Constructor
@@ -831,6 +1060,26 @@ class %(class_name)s : public %(base_class)s
   protected:
     typedef _Element Element;
     typedef _Element TPElem;
+
+  public:
+    %(class_name)s(ExtMachInst machInst, RegIndex _dest, RegIndex _op1,
+            int64_t _op2, RegIndex _gp) :
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s, _dest, _op1,
+                _op2, _gp)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
+def template VSIntCmpImmOpDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
 
   public:
     %(class_name)s(ExtMachInst machInst, RegIndex _dest, RegIndex _op1,

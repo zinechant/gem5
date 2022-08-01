@@ -1203,6 +1203,73 @@ let {{
             # TODO: this should become SveMemExecDeclare
             exec_output += SveContigMemExecDeclare.subst(substDict)
 
+    # Generates definitions for the VSLoadStore microops
+    def emitVSLoadStoreMicroops():
+        global header_output, exec_output, decoders
+
+        eaCode = '''
+        EA = XOp1;
+        unsigned memAccessSize = ArmStaticInst::getCurSveVecLen<int8_t>(
+            xc->tcBase())%s;'''
+        DeaCode = eaCode % ""
+        MeaCode = eaCode % " + 2"
+
+        AccCode = '''
+        unsigned B = ArmStaticInst::getCurSveVecLen<int8_t>(xc->tcBase());
+        for (int i = 0; i < B%s; i++) {
+            %s;
+        }'''
+        DAccCode = AccCode % ("", "%s")
+        MAccCode = AccCode % (" + 2", "%s")
+
+        loadDataAccCode = DAccCode % "AA64FpDest_ub[i] = memDataView[i]"
+        loadMetaAccCode = MAccCode % "AA64VSMetaD1_ub[i] = memDataView[i]"
+
+        storeDataAccCode = DAccCode % "memDataView[i] = AA64FpOp2_ub[i]"
+        storeMetaAccCode = MAccCode % "memDataView[i] = AA64VSMetaS2_ub[i]"
+
+        numCode = '''
+        XDest = *((uint16_t*) AA64VSMetaS2_ub);
+        '''
+
+        loadDataIop = ArmInstObjParams('vld', 'VSVLoadDataMicro', 'MicroOp',
+            {'memacc_code': loadDataAccCode,
+             'ea_code' : sveEnabledCheckCode + DeaCode},
+            ['IsMicroop', 'IsLoad'])
+        loadMetaIop = ArmInstObjParams('vlm', 'VSVLoadMetaMicro', 'MicroOp',
+            {'memacc_code': loadMetaAccCode,
+             'ea_code' : sveEnabledCheckCode + MeaCode},
+            ['IsMicroop', 'IsLoad'])
+
+        storeDataIop = ArmInstObjParams('vsd', 'VSVStoreDataMicro', 'MicroOp',
+            {'memacc_code': storeDataAccCode,
+             'ea_code' : sveEnabledCheckCode + DeaCode},
+            ['IsMicroop', 'IsStore'])
+        storeMetaIop = ArmInstObjParams('vsm', 'VSVStoreMetaMicro', 'MicroOp',
+            {'memacc_code': storeMetaAccCode + numCode,
+             'ea_code' : sveEnabledCheckCode + MeaCode},
+            ['IsMicroop', 'IsStore'])
+
+        header_output += VSVLoadMicroopDeclare.subst(loadDataIop)
+        header_output += VSVLoadMicroopDeclare.subst(loadMetaIop)
+        header_output += VSVStoreMicroopDeclare.subst(storeDataIop)
+        header_output += VSVStoreMicroopDeclare.subst(storeMetaIop)
+
+        exec_output += (
+            VSVLoadMicroopExecute.subst(loadDataIop) +
+            VSVLoadMicroopInitiateAcc.subst(loadDataIop) +
+            VSVLoadMicroopCompleteAcc.subst(loadDataIop) +
+            VSVLoadMicroopExecute.subst(loadMetaIop) +
+            VSVLoadMicroopInitiateAcc.subst(loadMetaIop) +
+            VSVLoadMicroopCompleteAcc.subst(loadMetaIop) +
+            VSVStoreMicroopExecute.subst(storeDataIop) +
+            VSVStoreMicroopInitiateAcc.subst(storeDataIop) +
+            VSVStoreMicroopCompleteAcc.subst(storeDataIop) +
+            VSVStoreMicroopExecute.subst(storeMetaIop) +
+            VSVStoreMicroopInitiateAcc.subst(storeMetaIop) +
+            VSVStoreMicroopCompleteAcc.subst(storeMetaIop)
+        )
+
     firstFaultTplArgs = ('int32_t', 'int64_t', 'uint32_t', 'uint64_t')
 
     def emitSveFirstFaultWritebackMicroop():
@@ -1580,6 +1647,8 @@ let {{
     # ST1[S]{B,H,W,D} (scalar plus vector)
     # LDFF1[S]{B,H,W,D} (scalar plus vector)
     emitSveIndexedMemMicroops(IndexedAddrForm.SCA_PLUS_VEC)
+
+    emitVSLoadStoreMicroops()
 
     # FFR writeback microop for gather loads
     emitSveFirstFaultWritebackMicroop()

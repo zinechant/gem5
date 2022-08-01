@@ -1057,6 +1057,7 @@ namespace ArmISA
         MISCREG_ZCR_EL2,
         MISCREG_ZCR_EL12,
         MISCREG_ZCR_EL1,
+        MISCREG_VSNUM,
 
         // NUM_PHYS_MISCREGS specifies the number of actual physical
         // registers, not considering the following pseudo-registers
@@ -2259,6 +2260,7 @@ namespace ArmISA
         "zcr_el2",
         "zcr_el12",
         "zcr_el1",
+        "vsnum",
 
         "num_phys_regs",
 

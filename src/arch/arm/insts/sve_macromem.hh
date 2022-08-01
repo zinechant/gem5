@@ -540,6 +540,124 @@ class SveIndexedMemSV : public PredMacroOp
     }
 };
 
+class VSVLoadMacro : public PredMacroOp
+{
+  protected:
+    RegIndex dest;
+    RegIndex data;
+    RegIndex meta;
+
+  public:
+    VSVLoadMacro(const char *mnem, ExtMachInst machInst, OpClass __opClass,
+                    RegIndex _dest, RegIndex _data, RegIndex _meta)
+        : PredMacroOp(mnem, machInst, __opClass),
+          dest(_dest), data(_data), meta(_meta)
+    {
+        numMicroops = 2;
+
+        microOps = new StaticInstPtr[numMicroops];
+        StaticInstPtr *uop = microOps;
+
+        *uop = new ArmISAInst::VSVLoadDataMicro(
+            mnem, machInst, __opClass, _dest, _data);
+        uop++;
+        *uop = new ArmISAInst::VSVLoadMetaMicro(
+            mnem, machInst, __opClass, _dest, _meta);
+
+        (*uop)->setLastMicroop();
+        microOps[0]->setFirstMicroop();
+
+        for (StaticInstPtr *uop = microOps; !(*uop)->isLastMicroop(); uop++) {
+            (*uop)->setDelayedCommit();
+        }
+    }
+
+    Fault
+    execute(ExecContext *, Trace::InstRecord *) const override
+    {
+        panic("Execute method called when it shouldn't!");
+        return NoFault;
+    }
+
+    std::string
+    generateDisassembly(Addr pc,
+                        const loader::SymbolTable *symtab) const override
+    {
+        // TODO: add suffix to transfer and base registers
+        std::stringstream ss;
+        printMnemonic(ss, "", false);
+        ccprintf(ss, "{");
+        printVecReg(ss, dest, true);
+        ccprintf(ss, "}, ");
+        printIntReg(ss, data);
+        ccprintf(ss, ", ");
+        printIntReg(ss, meta);
+        return ss.str();
+    }
+};
+
+class VSVStoreMacro : public PredMacroOp
+{
+  protected:
+    RegIndex dest;
+    RegIndex vec;
+    RegIndex data;
+    RegIndex meta;
+
+
+  public:
+    VSVStoreMacro(const char *mnem, ExtMachInst machInst, OpClass __opClass,
+                    RegIndex _dest, RegIndex _vec, RegIndex _data,
+                    RegIndex _meta)
+        : PredMacroOp(mnem, machInst, __opClass),
+          dest(_dest), vec(_vec), data(_data), meta(_meta)
+    {
+        numMicroops = 2;
+
+        microOps = new StaticInstPtr[numMicroops];
+        StaticInstPtr *uop = microOps;
+
+        *uop = new ArmISAInst::VSVStoreDataMicro(
+            mnem, machInst, __opClass, _dest, _data, _vec);
+        uop++;
+        *uop = new ArmISAInst::VSVStoreMetaMicro(
+            mnem, machInst, __opClass, _dest, _meta, _vec);
+
+        (*uop)->setLastMicroop();
+        microOps[0]->setFirstMicroop();
+
+        for (StaticInstPtr *uop = microOps; !(*uop)->isLastMicroop(); uop++) {
+            (*uop)->setDelayedCommit();
+        }
+    }
+
+    Fault
+    execute(ExecContext *, Trace::InstRecord *) const override
+    {
+        panic("Execute method called when it shouldn't!");
+        return NoFault;
+    }
+
+    std::string
+    generateDisassembly(Addr pc,
+                        const loader::SymbolTable *symtab) const override
+    {
+        // TODO: add suffix to transfer and base registers
+        std::stringstream ss;
+        printMnemonic(ss, "", false);
+        ccprintf(ss, "{");
+        printIntReg(ss, dest);
+        ccprintf(ss, "}, ");
+        printVecReg(ss, vec, true);
+        ccprintf(ss, ", ");
+        printIntReg(ss, data);
+        ccprintf(ss, ", ");
+        printIntReg(ss, meta);
+        return ss.str();
+    }
+};
+
+
 } // namespace ArmISA
 } // namespace gem5
 

@@ -800,6 +800,240 @@ def template SveFirstFaultWritebackMicroopDeclare {{
     };
 }};
 
+def template VSVLoadMicroopDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      private:
+        %(reg_idx_arr_decl)s;
+
+      protected:
+        RegIndex dest;
+        RegIndex op1;
+
+        unsigned memAccessFlags;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+                OpClass __opClass, RegIndex _dest, RegIndex _op1) :
+            %(base_class)s(mnem, machInst, %(op_class)s),
+            dest(_dest), op1(_op1), memAccessFlags(ArmISA::MMU::AllowUnaligned)
+        {
+            %(set_reg_idx_arr)s;
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const override;
+        Fault initiateAcc(ExecContext *, Trace::InstRecord *) const override;
+        Fault completeAcc(PacketPtr, ExecContext *,
+                          Trace::InstRecord *) const override;
+
+        std::string
+        generateDisassembly(Addr pc,
+                            const loader::SymbolTable *symtab) const override
+        {
+            std::stringstream ss;
+            printMnemonic(ss, "", false);
+            ccprintf(ss, "{");
+            printVecReg(ss, dest, true);
+            ccprintf(ss, "}, ");
+            ccprintf(ss, ", [");
+            printIntReg(ss, op1);
+            ccprintf(ss, "]");
+            return ss.str();
+        }
+    };
+}};
+
+def template VSVLoadMicroopExecute {{
+    Fault
+    %(class_name)s::execute(ExecContext *xc,
+            Trace::InstRecord *traceData) const
+    {
+        Addr EA;
+        Fault fault = NoFault;
+        [[maybe_unused]] bool aarch64 = true;
+
+        %(op_decl)s;
+        %(op_rd)s;
+        %(ea_code)s;
+
+        ArmISA::VecRegContainer memData;
+        auto memDataView = memData.as<uint8_t>();
+
+        fault = readMemAtomic(xc, EA, memDataView, memAccessSize,
+            this->memAccessFlags, std::vector<bool>(memAccessSize, true));
+
+        if (fault == NoFault) {
+            %(memacc_code)s;
+        }
+        return fault;
+    }
+}};
+
+def template VSVLoadMicroopInitiateAcc {{
+    Fault
+    %(class_name)s::initiateAcc(ExecContext *xc,
+            Trace::InstRecord *traceData) const
+    {
+        Addr EA;
+        Fault fault = NoFault;
+        [[maybe_unused]] bool aarch64 = true;
+
+        %(op_src_decl)s;
+        %(op_rd)s;
+        %(ea_code)s;
+
+        fault = initiateMemRead(xc, EA, memAccessSize,
+            this->memAccessFlags, std::vector<bool>(memAccessSize, true));
+
+
+        return fault;
+    }
+}};
+
+def template VSVLoadMicroopCompleteAcc {{
+    Fault
+    %(class_name)s::completeAcc(PacketPtr pkt,
+            ExecContext *xc, Trace::InstRecord *traceData) const
+    {
+        [[maybe_unused]] bool aarch64 = true;
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        ArmISA::VecRegContainer memData;
+        auto memDataView = memData.as<uint8_t>();
+
+        if (xc->readMemAccPredicate()) {
+            memcpy(memDataView, pkt->getPtr<uint8_t>(), pkt->getSize());
+        }
+
+        %(memacc_code)s;
+
+        return NoFault;
+    }
+}};
+
+def template VSVStoreMicroopDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      private:
+        %(reg_idx_arr_decl)s;
+
+      protected:
+        RegIndex dest;
+        RegIndex op1;
+        RegIndex op2;
+
+        unsigned memAccessFlags;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            OpClass __opClass, RegIndex _dest, RegIndex _op1, RegIndex _op2) :
+            %(base_class)s(mnem, machInst, %(op_class)s),
+            dest(_dest), op1(_op1), op2(_op2),
+            memAccessFlags(ArmISA::MMU::AllowUnaligned)
+        {
+            %(set_reg_idx_arr)s;
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const override;
+        Fault initiateAcc(ExecContext *, Trace::InstRecord *) const override;
+        Fault completeAcc(PacketPtr, ExecContext *,
+                          Trace::InstRecord *) const override;
+
+        std::string
+        generateDisassembly(Addr pc,
+                            const loader::SymbolTable *symtab) const override
+        {
+            std::stringstream ss;
+            printMnemonic(ss, "", false);
+            ccprintf(ss, "{");
+            printVecReg(ss, dest, true);
+            ccprintf(ss, "}, ");
+            ccprintf(ss, ", [");
+            printIntReg(ss, op1);
+            ccprintf(ss, ", ");
+            printIntReg(ss, op2);
+            ccprintf(ss, "]");
+            return ss.str();
+        }
+    };
+}};
+
+def template VSVStoreMicroopExecute {{
+    Fault
+    %(class_name)s::execute(ExecContext *xc,
+            Trace::InstRecord *traceData) const
+    {
+        Addr EA;
+        Fault fault = NoFault;
+        [[maybe_unused]] bool aarch64 = true;
+
+        %(op_decl)s;
+        %(op_rd)s;
+        %(ea_code)s;
+
+        ArmISA::VecRegContainer memData;
+        auto memDataView = memData.as<uint8_t>();
+
+        if (fault == NoFault) {
+            %(memacc_code)s;
+        }
+
+        fault = writeMemAtomic(xc, memDataView, EA, memAccessSize,
+            this->memAccessFlags, nullptr,
+            std::vector<bool>(memAccessSize, true));
+
+        %(op_wb)s;
+
+        return fault;
+    }
+}};
+
+def template VSVStoreMicroopInitiateAcc {{
+    Fault
+    %(class_name)s::initiateAcc(ExecContext *xc,
+            Trace::InstRecord *traceData) const
+    {
+        Addr EA;
+        Fault fault = NoFault;
+        [[maybe_unused]] bool aarch64 = true;
+
+        %(op_decl)s;
+        %(op_rd)s;
+        %(ea_code)s;
+
+        ArmISA::VecRegContainer memData;
+        auto memDataView = memData.as<uint8_t>();
+
+        if (fault == NoFault) {
+            %(memacc_code)s;
+        }
+
+        if (fault == NoFault) {
+            fault = writeMemTiming(xc, memDataView, EA, memAccessSize,
+                this->memAccessFlags, nullptr,
+                std::vector<bool>(memAccessSize, true));
+            %(op_wb)s;
+        }
+
+
+        return fault;
+    }
+}};
+
+def template VSVStoreMicroopCompleteAcc {{
+    Fault
+    %(class_name)s::completeAcc(PacketPtr pkt,
+            ExecContext *xc, Trace::InstRecord *traceData) const
+    {
+        return NoFault;
+    }
+}};
+
+
 def template SveFirstFaultWritebackMicroopExecute {{
     %(tpl_header)s
     Fault

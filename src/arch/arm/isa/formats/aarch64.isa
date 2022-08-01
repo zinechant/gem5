@@ -2168,7 +2168,11 @@ namespace Aarch64
                       case 0xb:
                         return new Rorv64(machInst, rdzr, rn, rm);
                      case 0xc:
-                        return new Pacga(machInst, rd, rn, makeSP(rm));
+                        if (bits(machInst, 31))
+                          return new Pacga(machInst, rd, rn, makeSP(rm));
+                        else
+                          return new VSVLoadMacro("vload", machInst, MemReadOp,
+                            rd, rn, rm);
                       case 0x10:
                         return new Crc32b64(machInst, rdzr, rn, rm);
                       case 0x11:
@@ -2307,38 +2311,38 @@ namespace Aarch64
           }
           case 0x3:
           {
-            if (bits(machInst, 30, 29) != 0x0 ||
-                    (bits(machInst, 23, 21) != 0 && bits(machInst, 31) == 0))
+            if (bits(machInst, 30, 29) != 0x0)
                 return new Unknown64(machInst);
             RegIndex rd = (RegIndex)(uint8_t)bits(machInst, 4, 0);
             RegIndex rdzr = makeZero(rd);
             RegIndex rn = (RegIndex)(uint8_t)bits(machInst, 9, 5);
             RegIndex ra = (RegIndex)(uint8_t)bits(machInst, 14, 10);
             RegIndex rm = (RegIndex)(uint8_t)bits(machInst, 20, 16);
-            switch (bits(machInst, 23, 21)) {
+            switch ((bits(machInst, 23, 21) << 1) + bits(machInst, 15)) {
               case 0x0:
-                if (bits(machInst, 15) == 0)
-                    return new Madd64(machInst, rdzr, ra, rn, rm);
-                else
-                    return new Msub64(machInst, rdzr, ra, rn, rm);
+                return new Madd64(machInst, rdzr, ra, rn, rm);
               case 0x1:
-                if (bits(machInst, 15) == 0)
-                    return new Smaddl64(machInst, rdzr, ra, rn, rm);
-                else
-                    return new Smsubl64(machInst, rdzr, ra, rn, rm);
+                return new Msub64(machInst, rdzr, ra, rn, rm);
               case 0x2:
-                if (bits(machInst, 15) != 0)
-                    return new Unknown64(machInst);
+                return new Smaddl64(machInst, rdzr, ra, rn, rm);
+              case 0x3:
+                return new Smsubl64(machInst, rdzr, ra, rn, rm);
+              case 0x4:
                 return new Smulh64(machInst, rdzr, rn, rm);
-              case 0x5:
-                if (bits(machInst, 15) == 0)
-                    return new Umaddl64(machInst, rdzr, ra, rn, rm);
+              case 0xa:
+                return new Umaddl64(machInst, rdzr, ra, rn, rm);
+              case 0xb:
+                if (bits(machInst, 31))
+                  return new Umsubl64(machInst, rdzr, ra, rn, rm);
                 else
-                    return new Umsubl64(machInst, rdzr, ra, rn, rm);
-              case 0x6:
-                if (bits(machInst, 15) != 0)
-                    return new Unknown64(machInst);
+                  return new VSVStoreMacro("vstore", machInst, MemReadOp,
+                    rd, rn, ra, rm);
+              case 0xc:
                 return new Umulh64(machInst, rdzr, rn, rm);
+              // Three RStream3Op not yet implemented with machInst[31] == 0
+                // case 0x4:
+                // case 0xa:
+                // case 0xc:
               default:
                 return new Unknown64(machInst);
             }

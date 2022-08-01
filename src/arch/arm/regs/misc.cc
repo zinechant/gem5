@@ -3925,6 +3925,8 @@ ISA::initializeMiscRegMetadata()
         .mapsTo(MISCREG_ZCR_EL1);
     InitReg(MISCREG_ZCR_EL1)
         .allPrivileges().exceptUserMode();
+    InitReg(MISCREG_VSNUM)
+      .allPrivileges();
 
     // Dummy registers
     InitReg(MISCREG_NOP)

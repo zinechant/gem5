@@ -108,6 +108,7 @@ output exec {{
 #include "arch/arm/reg_abi.hh"
 #include "arch/arm/semihosting.hh"
 #include "arch/arm/utility.hh"
+#include "arch/arm/vsbytes.hh"
 #include "arch/generic/memhelpers.hh"
 #include "base/condcodes.hh"
 #include "base/crc.hh"

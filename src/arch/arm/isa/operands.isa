@@ -450,6 +450,7 @@ def operands {{
     'AA64VSMetaS3': VectorReg('op3 + VECMETAOFFSET', 'AA64VSMetaS3'),
     'AA64VSMetaD1': VectorReg('dest + VECMETAOFFSET', 'AA64VSMetaD1'),
     'AA64VSMetaD2': VectorReg('dest2 + VECMETAOFFSET', 'AA64VSMetaD2'),
+    'AA64VSMetaDM': VectorReg('dest + VECMETAOFFSET', 'AA64VSMetaDM'),
 
     # Predicate register operands
     'GpOp': VecPredReg('gp'),
@@ -495,6 +496,7 @@ def operands {{
     'LLSCLock': CntrlRegNC('MISCREG_LOCKFLAG'),
     'Dczid' : CntrlRegNC('MISCREG_DCZID_EL0'),
     'PendingDvm': CntrlRegNC('MISCREG_TLBINEEDSYNC'),
+    'VSNUM': CntrlReg('MISCREG_VSNUM'),
 
     #Register fields for microops
     'URa' : IntReg('ura'),
