@@ -575,6 +575,8 @@ namespace Aarch64
         RegIndex zd = (RegIndex) (uint8_t) bits(machInst, 4, 0);
         RegIndex zn = (RegIndex) (uint8_t) bits(machInst, 9, 5);
         RegIndex zm = (RegIndex) (uint8_t) bits(machInst, 20, 16);
+        int64_t imm1 = sext<5>(zn);
+        int64_t imm2 = sext<5>(zm);
         uint8_t opc = (uint8_t) (bits(machInst, 23, 22) << 3
                 | bits(machInst, 12, 10));
 
@@ -587,6 +589,14 @@ namespace Aarch64
                 return new VSVEorUnpred(machInst, zd, zn, zm);
             case 0x18:
                 return new VSVBicUnpred(machInst, zd, zn, zm);
+            case 0x1:
+                return new VSVIndexII(machInst, zd, imm1, imm2);
+            case 0x9:
+                return new VSVIndexIR(machInst, zd, imm1, zm);
+            case 0x11:
+                return new VSVIndexRI(machInst, zd, zn, imm2);
+            case 0x19:
+                return new VSVIndexRR(machInst, zd, zn, zm);
             case 0x4:
                 return new SveAndUnpred<uint64_t>(machInst, zd, zn, zm);
             case 0xc:
@@ -1812,11 +1822,14 @@ namespace Aarch64
     StaticInstPtr
     decodeSveReadPredFromFFRUnpred(ExtMachInst machInst)
     {
-        if (bits(machInst, 23, 22) != 0) {
-            return new Unknown64(machInst);
-        }
         RegIndex pd = (RegIndex)(uint8_t) bits(machInst, 3, 0);
-        return new SveRdffrUnpred(machInst, pd);
+        RegIndex Rd = (RegIndex)(uint8_t) bits(machInst, 4, 0);
+        switch (bits(machInst, 23, 22)) {
+            case 0x0:return new SveRdffrUnpred(machInst, pd);
+            case 0x2:return new VSVRNum(machInst, Rd);
+            case 0x3:return new VSVRCNum(machInst, Rd);
+        }
+        return new Unknown64(machInst);
     }  // decodeSveReadPredFromFFRUnpred
 
     StaticInstPtr

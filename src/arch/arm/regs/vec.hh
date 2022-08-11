@@ -77,9 +77,13 @@ const int NumVecV7ArchRegs  = 16; // Q0-Q15
 const int NumVecV8ArchRegs  = 32; // V0-V31
 const int NumVecSpecialRegs = 8;
 const int NumVecIntrlvRegs = 4;
-const int NumVecMetaRegs = 32;
+const int NumVecMetaRegs = 40; // 32 Meta + 8 Special
 const int VECMETAOFFSET = NumVecV8ArchRegs + NumVecSpecialRegs +
     NumVecIntrlvRegs;
+const int PREDELEMS = VECMETAOFFSET + 32;
+const int STREAMADDR = VECMETAOFFSET + 33;
+const int STREAMBPOS  = VECMETAOFFSET + 34;
+const int STREAMBITS = VECMETAOFFSET + 35;
 const int NumVecRegs = VECMETAOFFSET + NumVecMetaRegs;
 const int NumVecPredRegs = 18;  // P0-P15, FFR, UREG0
 

@@ -451,6 +451,10 @@ def operands {{
     'AA64VSMetaD1': VectorReg('dest + VECMETAOFFSET', 'AA64VSMetaD1'),
     'AA64VSMetaD2': VectorReg('dest2 + VECMETAOFFSET', 'AA64VSMetaD2'),
     'AA64VSMetaDM': VectorReg('dest + VECMETAOFFSET', 'AA64VSMetaDM'),
+    'AA64VSPredNumE'  : VectorReg('PREDELEMS', 'AA64VSPredNumE'),
+    'AA64VSStreamAddr': VectorReg('STREAMADDR', 'AA64VSStreamAddr'),
+    'AA64VSStreamBPos': VectorReg('STREAMBPOS', 'AA64VSStreamBPos'),
+    'AA64VSStreamBits': VectorReg('STREAMBITS', 'AA64VSStreamBits'),
 
     # Predicate register operands
     'GpOp': VecPredReg('gp'),

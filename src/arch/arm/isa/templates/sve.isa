@@ -901,6 +901,109 @@ class SveIndexRR : public SveIndexRROp
 };
 }};
 
+def template VSVIndexIIOpDeclare {{
+class VSVIndexII : public SveIndexIIOp
+{
+  private:
+    %(reg_idx_arr_decl)s;
+
+  public:
+    // Constructor
+    VSVIndexII(ExtMachInst machInst, RegIndex _dest,
+               int8_t _imm1, int8_t _imm2) :
+        SveIndexIIOp("%(mnemonic)s", machInst, %(op_class)s,
+                     _dest, _imm1, _imm2)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
+def template VSVIndexIROpDeclare {{
+class VSVIndexIR : public SveIndexIROp
+{
+  private:
+    %(reg_idx_arr_decl)s;
+
+  public:
+    // Constructor
+    VSVIndexIR(ExtMachInst machInst, RegIndex _dest,
+               int8_t _imm, RegIndex _op) :
+        SveIndexIROp("%(mnemonic)s", machInst, %(op_class)s,
+                     _dest, _imm, _op)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
+def template VSVIndexRIOpDeclare {{
+class VSVIndexRI : public SveIndexRIOp
+{
+  private:
+    %(reg_idx_arr_decl)s;
+
+  public:
+    // Constructor
+    VSVIndexRI(ExtMachInst machInst, RegIndex _dest,
+               RegIndex _op, int8_t _imm) :
+        SveIndexRIOp("%(mnemonic)s", machInst, %(op_class)s,
+                     _dest, _op, _imm)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
+def template VSVIndexRROpDeclare {{
+class VSVIndexRR : public SveIndexRROp
+{
+  private:
+    %(reg_idx_arr_decl)s;
+
+  public:
+    // Constructor
+    VSVIndexRR(ExtMachInst machInst, RegIndex _dest,
+               RegIndex _op1, RegIndex _op2) :
+        SveIndexRROp("%(mnemonic)s", machInst, %(op_class)s,
+                     _dest, _op1, _op2)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
+def template VSVRNumOpDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
+
+  public:
+    // Constructor
+    %(class_name)s(ExtMachInst machInst, RegIndex _dest) :
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s, _dest)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
 def template SvePredCountOpDeclare {{
 template <class _Element>
 class %(class_name)s : public %(base_class)s

@@ -197,6 +197,7 @@ def main():
     parser.add_argument("--mem-size", action="store", type=str,
                         default="2GB",
                         help="Specify the physical memory size")
+    parser.add_argument("--param", action="append", default=[], help="params")
 
     args = parser.parse_args()
 
@@ -209,6 +210,7 @@ def main():
     # Populate the root node with a system. A system corresponds to a
     # single node with shared memory.
     root.system = create(args)
+    root.apply_config(args.param)
 
     # Instantiate the C++ object hierarchy. After this point,
     # SimObjects can't be instantiated anymore.
