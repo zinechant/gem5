@@ -413,6 +413,7 @@ ISA::initID64(const ArmISAParams &p)
     // SVE
     miscRegs[MISCREG_ID_AA64ZFR0_EL1] = 0;  // SVEver 0
     miscRegs[MISCREG_VSNUM] = 0x1FFFFFFF;
+    miscRegs[MISCREG_STREAMMASK] = 0xFFFFFFFFU;
     if (release->has(ArmExtension::SECURITY)) {
         miscRegs[MISCREG_ZCR_EL3] = sveVL - 1;
     } else if (release->has(ArmExtension::VIRTUALIZATION)) {

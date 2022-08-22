@@ -16,6 +16,8 @@ union BHSD_T
     uint64_t d;
 };
 
+#define MASK(b) ((b) == 64? 0xFFFFFFFFFFFFFFFFUL : ((1UL << (b)) - 1))
+
 #define BHSD_RB(data) (((const BHSD_T*)(data))->b)
 #define BHSD_RH(data) (((const BHSD_T*)(data))->h)
 #define BHSD_RS(data) (((const BHSD_T*)(data))->s)
@@ -100,6 +102,40 @@ static inline uint8_t VSPackBytes(uint8_t *&pdest, const int64_t value) {
 
     assert(0 == bytes);
     return value < 0 ? bits + 128 : bits;
+}
+
+static inline void AdvanceBits(const uint8_t *&pdata, uint8_t& pos,
+                               uint8_t bits) {
+    pdata += (bits + pos) >> 3;
+    pos = (bits + pos) & 7;
+}
+
+static inline void AdvanceBits(uint8_t *&pdata, uint8_t& pos, uint8_t bits) {
+    pdata += (bits + pos) >> 3;
+    pos = (bits + pos) & 7;
+}
+
+
+static inline uint64_t UnpackBits(const uint8_t *pdata, uint8_t pos,
+                                  uint8_t bits) {
+    uint64_t x = (*pdata) >> pos;
+    x |= (BHSD_RD(pdata + 1) << (8 - pos));
+    return x & MASK(bits);
+}
+
+static inline void PackBits(uint8_t *pdata, uint8_t pos, uint8_t bits,
+                            uint64_t x) {
+    x &= MASK(bits);
+    *pdata &= (MASK(8) << (pos + bits < 8 ? 8 : pos + bits)) + MASK(pos);
+    *pdata |= (x << pos);
+    if (bits + pos > 8) {
+        uint8_t left = bits + pos - 8;
+        pdata++;
+        uint64_t y = BHSD_RD(pdata);
+        x >>= 8 - pos;
+        y &= (MASK(64 - left) << left);
+        BHSD_WD(pdata) = (x | y);
+    }
 }
 
 #endif  // __ARCH_ARM_VSBYTES_HH_

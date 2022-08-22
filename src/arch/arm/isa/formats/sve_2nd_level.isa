@@ -442,9 +442,13 @@ namespace Aarch64
                     return new VSVAbs(machInst, zd, zn, pg);
                 case 1:
                     if (esize != 2) return new Unknown64(machInst);
-                    return new Unknown64(machInst); // VPSUM, VSVpsum
+                    return new VSVPsum(machInst, zd, zn, pg);
                 case 2:
-                    return new VSVTvs(machInst, zd, zn, pg); // VTVS, VSVTvs
+                    if (esize != 2) return new Unknown64(machInst);
+                    return new VSVUnpackPred(machInst, zd, zn, pg);
+                case 3:
+                    return decodeSveUnaryPredS<VSVTvs>(
+                        esize, machInst, zd, zn, pg);
                 case 4:
                     if (esize != 2) return new Unknown64(machInst);
                     return new VSVCpyMerge(machInst, zd, zn, pg);
@@ -1140,6 +1144,16 @@ namespace Aarch64
             RegIndex zdn = (RegIndex) (uint8_t) bits(machInst, 4, 0);
             RegIndex vm = (RegIndex) (uint8_t) bits(machInst, 9, 5);
             return decodeSveUnaryUnpredU<SveInsrf>(size, machInst, zdn, vm);
+        } else if (bits(machInst, 20, 16) == 0x2 && b12_10 == 0x6) {
+            uint8_t size = bits(machInst, 23, 22);
+            RegIndex zdn = (RegIndex) (uint8_t) bits(machInst, 4, 0);
+            RegIndex rm = (RegIndex) (uint8_t) bits(machInst, 9, 5);
+            return decodeSveUnaryUnpredS<VSUnpack>(size, machInst, zdn, rm);
+        } else if (bits(machInst, 20, 16) == 0x6 && b12_10 == 0x6) {
+            if (bits(machInst, 23, 22) != 2) return new Unknown64(machInst);
+            RegIndex zd = (RegIndex) (uint8_t) bits(machInst, 4, 0);
+            RegIndex rn = (RegIndex) (uint8_t) bits(machInst, 9, 5);
+            return new VSVUnpackUnpred(machInst, zd, rn);
         } else if (bits(machInst, 20, 16) == 0x16 && b12_10 == 0x6) {
             if (bits(machInst, 23, 22) != 2) return new Unknown64(machInst);
             RegIndex zd = (RegIndex) (uint8_t) bits(machInst, 4, 0);

@@ -484,7 +484,7 @@ class %(class_name)s : public %(base_class)s
     // Constructor
     %(class_name)s(ExtMachInst machInst,
                    RegIndex _dest, RegIndex _op1, RegIndex _op2,
-                   RegIndex _gp, SvePredType _predType) :
+                   RegIndex _gp, SvePredType _predType=SvePredType::SELECT) :
         %(base_class)s("%(mnemonic)s", machInst, %(op_class)s,
                        _dest, _op1, _op2, _gp, _predType)
     {
@@ -669,6 +669,64 @@ class %(class_name)s : public %(base_class)s
 };
 }};
 
+
+def template EStreamX1RegDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
+
+  public:
+    %(class_name)s(ExtMachInst machInst, RegIndex _dest, RegIndex _op1) :
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s, _dest, _op1)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
+
+def template WStreamX2RegDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
+
+  public:
+    %(class_name)s(ExtMachInst machInst, RegIndex _dest,
+                                   RegIndex _op1, RegIndex _op2) :
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s,
+                       _dest, _op1, _op2)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
+def template RStreamX3RegDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
+
+  public:
+    %(class_name)s(ExtMachInst machInst, RegIndex _dest,
+                                   RegIndex _op1, RegIndex _op2,
+                                   RegIndex _op3) :
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s,
+                       _dest, _op1, _op2, _op3)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
 def template SveTerPredOpDeclare {{
 template <class _Element>
 class %(class_name)s : public %(base_class)s
@@ -679,6 +737,27 @@ class %(class_name)s : public %(base_class)s
   protected:
     typedef _Element Element;
     typedef _Element TPElem;
+
+  public:
+    // Constructor
+    %(class_name)s(ExtMachInst machInst, RegIndex _dest,
+                   RegIndex _op1, RegIndex _op2, RegIndex _gp) :
+        %(base_class)s("%(mnemonic)s", machInst, %(op_class)s,
+                       _dest, _op1, _op2, _gp)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+
+    Fault execute(ExecContext *, Trace::InstRecord *) const override;
+};
+}};
+
+def template VSTerPredOpDeclare {{
+class %(class_name)s : public %(base_class)s
+{
+  private:
+    %(reg_idx_arr_decl)s;
 
   public:
     // Constructor

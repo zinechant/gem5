@@ -3927,6 +3927,8 @@ ISA::initializeMiscRegMetadata()
         .allPrivileges().exceptUserMode();
     InitReg(MISCREG_VSNUM)
       .allPrivileges();
+    InitReg(MISCREG_STREAMMASK)
+      .allPrivileges();
 
     // Dummy registers
     InitReg(MISCREG_NOP)

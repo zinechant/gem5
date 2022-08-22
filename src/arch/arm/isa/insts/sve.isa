@@ -226,6 +226,27 @@ output header {{
     }
 
     // Decodes unary, constructive, unpredicated SVE instructions, handling
+    // signed variants only.
+    template <template <typename T> class Base>
+    StaticInstPtr
+    decodeSveUnaryUnpredS(unsigned size, ExtMachInst machInst,
+                          RegIndex dest, RegIndex op1)
+    {
+        switch (size) {
+          case 0:
+            return new Base<int8_t>(machInst, dest, op1);
+          case 1:
+            return new Base<int16_t>(machInst, dest, op1);
+          case 2:
+            return new Base<int32_t>(machInst, dest, op1);
+          case 3:
+            return new Base<int64_t>(machInst, dest, op1);
+          default:
+            return new Unknown64(machInst);
+        }
+    }
+
+    // Decodes unary, constructive, unpredicated SVE instructions, handling
     // floating-point variants only.
     template <template <typename T> class Base>
     StaticInstPtr
@@ -1211,6 +1232,12 @@ let {{
         SUB = 2
         MUL = 3
 
+    class StreamT:
+        Reserved = 0
+        FixWidth = 1
+        Huffman = 2
+        VarWidth = 3
+
     class PredType:
         NONE = 0
         MERGE = 1
@@ -1933,6 +1960,314 @@ let {{
                          'class_name' : 'Sve' + Name}
             exec_output += SveOpExecDeclare.subst(substDict)
 
+    def vsUnpackInst(name, Name, opClass, types, predType=PredType.NONE,
+                     consume=False):
+        global header_output, exec_output, decoders
+
+        assert(types is None or not consume)
+        assert(types is None or predType==PredType.NONE)
+        assert(predType == PredType.NONE or not consume)
+        assert(predType == PredType.NONE or predType == PredType.ZERO)
+
+        code = sveEnabledCheckCode + '''
+        assert(!(Op1 >> 12));
+        uint32_t sid = Op1 & 127;
+        uint32_t sbid = sid << 2;
+        uint32_t typ = (Op1 >> 8) & 15;
+        assert(typ == AA64VSStreamState_ub[sbid + 1]);
+        assert((StreamMask >> sid) & 1);
+
+        uint8_t pos = AA64VSStreamState_ub[sbid];
+        uint8_t destw = AA64VSStreamState_ub[sbid + 2];
+        uint8_t srcw = AA64VSStreamState_ub[sbid + 3];
+        uint8_t dicw = (destw <= 8 ? 1 : 2);  // Only used in type 2;
+
+        const uint8_t* pdata = (const uint8_t*)AA64VSStreamAddr1_ud[sid];
+        const uint8_t* const pmeta = (const uint8_t*)AA64VSStreamAddr2_ud[sid];
+
+        uint64_t bits = 0;
+        uint32_t elems = 0;'''
+
+        if (types):
+            code += '''
+        assert((sizeof(Element) << 3) >= destw);
+        uint32_t eCount = ArmStaticInst::getCurSveVecLen<Element>(
+            xc->tcBase());
+        for (; elems < eCount && bits < AA64VSStreamBits_ud[sid]; elems++) {'''
+        else:
+            if consume:
+                code += '''
+        for (; bits < AA64VSStreamBits_ud[sid]; elems++) {'''
+            else:
+                code += '''
+        AA64FpDest_ub[0] = 0;
+        AA64VSMetaD1_ub[0] = 0;
+        uint8_t *pdest = AA64FpDest_ub;
+        uint8_t *metad = AA64VSMetaD1_ub + 2;
+        uint32_t B = ArmStaticInst::getCurSveVecLenInBits(xc->tcBase()) / 8;
+        uint32_t inum = %s;
+        for (uint32_t obs = 0; elems < inum && bits < AA64VSStreamBits_ud[sid];
+            elems++) {''' % ("B" if predType == PredType.NONE else
+                             "AA64VSPredNumE_uh[gp]")
+
+
+        code += '''
+            uint8_t b = (typ == 3) ? pmeta[elems] & 127 : srcw;
+            uint64_t x = UnpackBits(pdata, pos, b);
+            if (typ == 2) {
+                uint32_t y = BHSD_RS(pmeta + (x << dicw));
+                b = y & 127;
+                x = y >> 8;
+            } else if (typ == 3) {
+                x = (pmeta[elems] >> 7) ? 0 - x : x;
+            }
+
+            AdvanceBits(pdata, pos, b);
+            bits += b;'''
+
+        if (predType == PredType.ZERO):
+            code += '''
+            if (!GpOp_ub[elems]) x = 0;'''
+
+        if (types):
+            code += '''
+            AA64FpDest_x[elems] = x;'''
+        elif consume:
+            code += '''
+            if (elems == Op2 - 1) {
+                elems++;
+                break;
+            }'''
+        else:
+            code += '''
+            metad[elems] = VSPackBytes(pdest, x);
+            obs += BITS2BYTES(metad[elems]);
+            if (obs > B) {
+                break;
+            }'''
+
+        code += '''
+        }'''
+
+        code += '''
+        if (bits == AA64VSStreamBits_ud[sid]) {
+            assert(BHSD_RS(AA64VSStreamState_ub + sbid + 4) == elems);
+        }'''
+
+        if (types or consume):
+            code += '''
+        AA64VSStreamAddr1_ud[sid] = (uint64_t)pdata;
+        AA64VSStreamState_ub[sbid] = pos;
+        if (typ == 3) {
+            AA64VSStreamAddr2_ud[sid] = (uint64_t)(pmeta + elems);
+        }
+        AA64VSStreamBits_ud[sid] -= bits;
+        BHSD_WS(AA64VSStreamState_ub + sbid + 4) -= elems;'''
+        else:
+            code += '''
+        BHSD_WH(AA64VSMetaD1_ub) = elems;'''
+
+        if types:
+            base_class = 'SveUnaryUnpredOp'
+        elif consume:
+            base_class = 'DataX2RegOp'
+        elif predType == PredType.ZERO:
+            base_class = 'SveUnaryPredOp'
+        else:
+            base_class = 'SveUnaryUnpredOp'
+
+        iop = ArmInstObjParams(name, 'VS' + Name, base_class,
+                               {'code': code, 'op_class': opClass}, [])
+        if types:
+            header_output += SveUnaryUnpredOpDeclare.subst(iop)
+            exec_output += SveOpExecute.subst(iop)
+            for typ in types:
+                substDict = {'targs' : typ,
+                            'class_name' : 'VS' + Name}
+                exec_output += SveOpExecDeclare.subst(substDict)
+        elif consume:
+            header_output += WStreamX2RegDeclare.subst(iop)
+            exec_output += SveNonTemplatedOpExecute.subst(iop)
+        elif predType == PredType.ZERO:
+            header_output += VSUnaryPredOpDeclare.subst(iop)
+            exec_output += SveNonTemplatedOpExecute.subst(iop)
+        else:
+            header_output += VSUnaryUnpredOpDeclare.subst(iop)
+            exec_output += SveNonTemplatedOpExecute.subst(iop)
+
+    def vsPackInst(name, Name, opClass, types):
+        global header_output, exec_output, decoders
+
+        code = sveEnabledCheckCode
+
+        code += '''
+        assert(Op2 >> 12);
+        uint32_t sid = Op2 & 127;
+        uint32_t sbid = sid << 2;
+        uint32_t typ = (Op2 >> 8) & 15;
+        assert(typ == AA64VSStreamState_ub[sbid + 1]);
+        assert((StreamMask >> sid) & 1);
+
+        uint8_t pos = AA64VSStreamState_ub[sbid];
+        uint8_t srcw = AA64VSStreamState_ub[sbid + 2];
+        uint8_t destw = AA64VSStreamState_ub[sbid + 3];
+
+        uint8_t dicw = (destw <= 8 ? 1 : 2);  // Only used in type 2;
+
+        uint8_t* pdata = (uint8_t*)AA64VSStreamAddr1_ud[sid];
+        uint8_t* const pmeta = (uint8_t*)AA64VSStreamAddr2_ud[sid];
+
+        uint32_t elems = 0;
+        uint64_t bits = 0;'''
+
+        if (types):
+            code += '''
+        uint32_t eCount = ArmStaticInst::getCurSveVecLen<Element>(
+                xc->tcBase());
+        for (int i = 0; i < eCount; i++) {
+            if (!GpOp_x[i]) continue;
+            uint64_t x = AA64FpOp1_x[i] & MASK(srcw);'''
+        else:
+            code += '''
+        const uint8_t *psrc1 = AA64FpOp1_ub;
+        const uint8_t *meta1 = AA64VSMetaS1_ub + 2;
+        unsigned inum = BHSD_RH(AA64VSMetaS1_ub);
+        unsigned pnum = AA64VSPredNumE_uh[gp];
+        inum = pnum < inum ? pnum : inum;
+
+        for (int i = 0; i < inum; i++) {
+            int64_t x = VSUnpackBytes(psrc1, meta1[i]);
+            if (!GpOp_ub[i]) continue;'''
+
+        code += '''
+            uint8_t b = destw;
+            if (typ == 2) {
+                uint32_t y = BHSD_RS(pmeta + (x << dicw));
+                b = y & 127;
+                x = y >> 8;
+            } else if (typ == 3) {
+                int64_t y = x;
+                x = y < 0 ? 0 - y : y;
+                b = x ? 64 - __builtin_clzl(x) : 0;
+                pmeta[i] = (y < 0) ? b + 128 : b;
+            }
+            PackBits(pdata, pos, b, x);
+            AdvanceBits(pdata, pos, b);
+            bits += b;
+            elems++;
+        }
+
+        Dest = elems;
+        AA64VSStreamAddr1_ud[sid] = (uint64_t)pdata;
+        AA64VSStreamState_ub[sbid] = pos;
+        if (typ == 3) {
+            AA64VSStreamAddr2_ud[sid] = (uint64_t)(pmeta + elems);
+        }
+        AA64VSStreamBits_ud[sid] += bits;
+        BHSD_WS(AA64VSStreamState_ub + sbid + 4) += elems;'''
+
+        iop = ArmInstObjParams(name, 'VS' + Name, 'SveTerPredOp',
+                               {'code': code, 'op_class': opClass}, [])
+        if (types):
+            header_output += SveTerPredOpDeclare.subst(iop)
+            exec_output += SveOpExecute.subst(iop)
+            for typ in types:
+                substDict = {'targs' : typ,
+                            'class_name' : 'VS' + Name}
+                exec_output += SveOpExecDeclare.subst(substDict)
+        else:
+            header_output += VSTerPredOpDeclare.subst(iop)
+            exec_output += SveNonTemplatedOpExecute.subst(iop)
+
+    def vsStreamInst(name, Name, opClass, streamType, wnr):
+        global header_output, exec_output, decoders
+
+        code = '''
+        uint32_t sid = __builtin_ffs(StreamMask);
+        assert(sid != 0);
+        sid--;
+        StreamMask ^= (1UL << sid);
+        uint32_t sbid = sid << 3;
+
+        AA64VSStreamAddr1_ud[sid] = XOp1;
+        AA64VSStreamState_ub[sbid] = 0;
+        const uint16_t typ = %d;
+        AA64VSStreamState_ub[sbid + 1] = typ;''' % (
+            streamType + (16 if wnr else 0))
+
+        if streamType == StreamT.FixWidth:
+            code += '''
+        AA64VSStreamState_ub[sbid + 2] = Op2;
+        AA64VSStreamState_ub[sbid + 3] = Op2;'''
+
+
+        elif streamType == StreamT.Huffman:
+            code += '''
+        const uint8_t* pmeta = (const uint8_t*)XOp2 + 4;
+        AA64VSStreamAddr2_ud[sid] = XOp2 + 8;
+        unsigned msymbbits = BHSD_RB(pmeta);
+        unsigned mcodebits = BHSD_RB(pmeta + 1);
+        assert(msymbbits <= 24);
+        assert(mcodebits <= 24);
+        AA64VSStreamState_ub[sbid + 2] = msymbbits;
+        AA64VSStreamState_ub[sbid + 3] = mcodebits;
+        '''
+        elif streamType == StreamT.VarWidth:
+            code += '''
+        AA64VSStreamAddr2_ud[sid] = XOp2 + 4;
+        AA64VSStreamState_ub[sbid + 2] = 64;
+        AA64VSStreamState_ub[sbid + 3] = 64;'''
+        else:
+            raise ValueError('invalid Stream Type %s' % str(streamType))
+
+        code += '''
+        AA64VSStreamBits_ud[sid] = %s;
+        BHSD_WS(AA64VSStreamState_ub + sbid + 4) = %s;
+        Dest = sid + (typ << 8);''' % (
+            "0" if wnr else "XOp3",
+            "0" if wnr else ("XOp3 / Op2" if streamType == StreamT.FixWidth
+                             else "BHSD_RS(XOp2)")
+            )
+
+        base_class = 'DataX2RegOp' if wnr else 'DataX3RegOp'
+        iop = ArmInstObjParams(name, 'VS' + Name, base_class,
+                               {'code': code, 'op_class': opClass}, [])
+
+        if wnr:
+            header_output += WStreamX2RegDeclare.subst(iop)
+        else:
+            header_output += RStreamX3RegDeclare.subst(iop)
+        exec_output += SveNonTemplatedOpExecute.subst(iop)
+
+    def vsEStreamInst(name, Name, opClass, wnr):
+        global header_output, exec_output, decoders
+
+        code = '''
+        uint8_t sid = Op1 & 127;
+
+        assert((StreamMask >> sid) & 1);
+        StreamMask = StreamMask ^ (1 << sid);
+        assert((Op1 >> 12) == %d);''' % (1 if wnr else 0)
+
+        code += '''
+        XDest = AA64VSStreamBits_ud[sid];'''
+
+        if wnr:
+            code += '''
+        uint8_t typ = (Op1 >> 8) & 15;
+        assert(typ && (typ < 4));
+        if (typ != 1) {
+            uint32_t elems = BHSD_RS(AA64VSStreamState_ub + sbid + 4);
+            uint64_t offset = (typ == 2) ? 8 : (4 + elems);
+            BHSD_WS(AA64VSStreamAddr2_ud[sid] - offset) = elems;
+        }'''
+
+        iop = ArmInstObjParams(name, 'VS' + Name, 'DataX1RegOp',
+                               {'code': code, 'op_class': opClass}, [])
+
+        header_output += EStreamX1RegDeclare.subst(iop)
+        exec_output += SveNonTemplatedOpExecute.subst(iop)
+
     # Generates definitions for binary VS instructions
     def vsBinInst(name, Name, opClass, op, predType=PredType.NONE,
                    isDestructive=False, sat=SatType.NONE, decoder='Generic'):
@@ -2005,7 +2340,8 @@ let {{
                 destElem = negd ? 0x7FFFFFFFFFFFFFFFL : 0x8000000000000001L;
             }'''
 
-        merge_value = "0" if predType == PredType.ZERO else "srcElem1"
+        merge_value = "0" if predType == PredType.ZERO else (
+            "srcElem2" if predType == PredType.SELECT else "srcElem1")
 
         if predType != PredType.NONE:
             code += '''
@@ -2236,6 +2572,106 @@ let {{
             header_output += VSUnaryUnpredOpDeclare.subst(iop)
         exec_output += SveNonTemplatedOpExecute.subst(iop)
 
+    # Generates definitions for unary VS instructions (always constructive)
+    def vsVTvsInst(name, Name, opClass, types):
+        global header_output, exec_output, decoders
+
+        code = sveEnabledCheckCode + '''
+        unsigned eCount = ArmStaticInst::getCurSveVecLen<Element>(
+                xc->tcBase());
+        assert(VSBB == 8);
+        unsigned B = ArmStaticInst::getCurSveVecLenInBits(xc->tcBase()) / 8;
+
+        uint32_t inum = AA64VSPredNumE_uh[gp];
+        uint32_t onum = 0;
+
+        AA64FpDest_ub[0] = 0;
+        AA64VSMetaD1_ub[0] = 0;
+        uint8_t *pdest = AA64FpDest_ub;
+        uint8_t *metad = AA64VSMetaD1_ub + 2;
+
+        for (unsigned obytes = 0; onum < inum; onum++) {
+            int64_t destElem = 0;
+
+            if (GpOp_x[onum]) {
+                destElem = AA64FpOp1_x[onum];
+            }
+
+            metad[0] = VSPackBytes(pdest, destElem);
+            obytes += BITS2BYTES(metad[0]);
+            if (obytes > B) {
+                break;
+            }
+            metad++;
+        }
+
+        BHSD_WH(AA64VSMetaD1_ub) = onum;
+        VSNUM = onum < VSNUM ? onum : VSNUM;'''
+
+        iop = ArmInstObjParams(name, 'VS' + Name, 'SveUnaryPredOp',
+                               {'code': code, 'op_class': opClass}, [])
+
+        header_output += SveUnaryPredOpDeclare.subst(iop)
+        exec_output += SveOpExecute.subst(iop)
+        for typ in types:
+            substDict = {'targs' : typ,
+                        'class_name' : 'VS' + Name}
+            exec_output += SveOpExecDeclare.subst(substDict)
+
+
+    # Generates definitions for unary VS instructions (always constructive)
+    def vsVPsumInst(name, Name, opClass):
+        global header_output, exec_output, decoders
+
+        code = sveEnabledCheckCode + '''
+        assert(VSBB == 8);
+        unsigned B = ArmStaticInst::getCurSveVecLenInBits(xc->tcBase()) / 8;
+
+        const uint8_t *psrc1 = AA64FpOp1_ub;
+        const uint8_t *meta1 = AA64VSMetaS1_ub;
+        unsigned inum = BHSD_RH(meta1);
+        meta1 += 2;
+
+        inum = inum < AA64VSPredNumE_uh[gp] ? inum : AA64VSPredNumE_uh[gp];
+
+
+        AA64FpDest_ub[0] = 0;
+        AA64VSMetaD1_ub[0] = 0;
+        uint8_t *pdest = AA64FpDest_ub;
+        uint8_t *metad = AA64VSMetaD1_ub + 2;
+        unsigned onum = 0;
+        int64_t last = 0;
+
+        for (unsigned obytes = 0; onum < inum; onum++) {
+            int64_t destElem = 0;
+
+            int64_t srcElem1 = VSUnpackBytes(psrc1, meta1[0]);
+            meta1++;
+
+            if (GpOp_ub[onum]) {
+                destElem = last + srcElem1;
+            } else {
+                destElem = last;
+            }
+
+            metad[0] = VSPackBytes(pdest, destElem);
+            obytes += BITS2BYTES(metad[0]);
+            if (obytes > B) {
+                break;
+            }
+            metad++;
+            last = destElem;
+        }
+
+        BHSD_WH(AA64VSMetaD1_ub) = onum;
+        VSNUM = onum < VSNUM ? onum : VSNUM;'''
+
+        iop = ArmInstObjParams(name, 'VS' + Name, 'SveUnaryPredOp',
+                               {'code': code, 'op_class': opClass}, [])
+
+        header_output += VSUnaryPredOpDeclare.subst(iop)
+        exec_output += SveNonTemplatedOpExecute.subst(iop)
+
 
     # Generates definitions for binary VS instructions with immediate operand
     def vsBinImmInst(name, Name, opClass, op, predType=PredType.NONE,
@@ -2417,7 +2853,6 @@ let {{
         global header_output, exec_output, decoders
         code = sveEnabledCheckCode + '''
         assert(VSBB == 8);
-        unsigned W = ArmStaticInst::getCurSveVecLen<int64_t>(xc->tcBase());
 
         const uint8_t *psrc1 = AA64FpOp1_ub;
         const uint8_t *meta1 = AA64VSMetaS1_ub;
@@ -3817,13 +4252,16 @@ let {{
     # VASL (vectors)
     vsBinInst('vasl', 'VAslPred', 'SimdAluOp', vAslCode, PredType.MERGE, True)
 
+    # VSEL (vectors)
+    vSelCode = 'destElem = srcElem1;'
+    vsBinInst('vsel', 'VSel', 'SimdAluOp', vSelCode, PredType.SELECT)
+
     # VABS
     vAbsCode = 'destElem = std::abs(srcElem1);'
     vsUnaryInst('vabs', 'VAbs', 'SimdAluOp', vAbsCode, PredType.MERGE)
 
-    # VTVS (zeroing)
-    vTvsCode = 'destElem = srcElem1;'
-    vsUnaryInst('vtvs', 'VTvs', 'SimdAluOp', vTvsCode, PredType.ZERO)
+    # VPSUM
+    vsVPsumInst('vpsum', 'VPsum', 'SimdAluOp')
 
     # VCPY (scalar, zeroing)
     vCpyCode = 'destElem = srcElem1;'
@@ -3848,10 +4286,6 @@ let {{
     vDupCode = 'destElem = srcElem1;'
     vsUnaryInst('vdup', 'VDupUnpred', 'SimdAluOp', vDupCode, PredType.NONE,
         srcRegType=SrcRegType.Scalar)
-
-    # VPSUM
-    # vTvsCode = 'destElem = srcElem1;'
-    # vsUnaryInst('vabs', 'VAbs', 'SimdAluOp', vTvsCode, PredType.ZERO)
 
     # VADDV
     vAddvCode = 'destElem += srcElem1;'
@@ -3883,6 +4317,16 @@ let {{
     vsRNum(False)
     vsRNum(True)
 
+    vsStreamInst('frstream', 'FRStream', 'IntAluOp', StreamT.FixWidth, False)
+    vsStreamInst('hrstream', 'HRStream', 'IntAluOp', StreamT.Huffman, False)
+    vsStreamInst('vrstream', 'VRStream', 'IntAluOp', StreamT.VarWidth, False)
+    vsStreamInst('fwstream', 'FWStream', 'IntAluOp', StreamT.FixWidth, True)
+    vsStreamInst('hwstream', 'HWStream', 'IntAluOp', StreamT.Huffman, True)
+    vsStreamInst('vwstream', 'VWStream', 'IntAluOp', StreamT.VarWidth, True)
+
+    vsEStreamInst('erstream', 'ERStream', 'IntAluOp', False)
+    vsEStreamInst('ewstream', 'EWStream', 'IntAluOp', False)
+
     fpTypes = ('uint16_t', 'uint32_t', 'uint64_t')
     signedTypes = ('int8_t', 'int16_t', 'int32_t', 'int64_t')
     unsignedTypes = ('uint8_t', 'uint16_t', 'uint32_t', 'uint64_t')
@@ -3896,6 +4340,17 @@ let {{
             ('uint16_t', 'uint32_t'), ('uint32_t', 'uint64_t'))
     signedWideSDTypes = (('int8_t', 'int16_t'),
             ('int16_t', 'int32_t'), ('int32_t', 'int64_t'))
+
+    # VTVS (zeroing)
+    vsVTvsInst('vtvs', 'VTvs', 'SimdAluOp', signedTypes)
+
+    # P/UP
+    vsPackInst('pack', 'Pack', 'SimdAluOp', signedTypes)
+    vsPackInst('vpack', "VPack", "SimdAluOp", None)
+    vsUnpackInst('unpack', 'Unpack', 'SimdAluOp', signedTypes)
+    vsUnpackInst('vunpack', 'VUnpackUnpred', 'SimdAluOp', None)
+    vsUnpackInst('vunpack', 'VUnpackPred', 'SimdAluOp', None, PredType.ZERO)
+    vsUnpackInst('crstream', 'CRStream', 'IntAluOp', None, consume=True)
 
     # ABS
     absCode = 'destElem = (Element) std::abs(srcElem1);'

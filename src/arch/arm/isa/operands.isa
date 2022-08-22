@@ -452,9 +452,10 @@ def operands {{
     'AA64VSMetaD2': VectorReg('dest2 + VECMETAOFFSET', 'AA64VSMetaD2'),
     'AA64VSMetaDM': VectorReg('dest + VECMETAOFFSET', 'AA64VSMetaDM'),
     'AA64VSPredNumE'  : VectorReg('PREDELEMS', 'AA64VSPredNumE'),
-    'AA64VSStreamAddr': VectorReg('STREAMADDR', 'AA64VSStreamAddr'),
-    'AA64VSStreamBPos': VectorReg('STREAMBPOS', 'AA64VSStreamBPos'),
+    'AA64VSStreamAddr1': VectorReg('STREAMADDR1', 'AA64VSStreamAddr1'),
+    'AA64VSStreamAddr2': VectorReg('STREAMADDR2', 'AA64VSStreamAddr2'),
     'AA64VSStreamBits': VectorReg('STREAMBITS', 'AA64VSStreamBits'),
+    'AA64VSStreamState': VectorReg('STREAMSTATE', 'AA64VSStreamState'),
 
     # Predicate register operands
     'GpOp': VecPredReg('gp'),
@@ -501,6 +502,7 @@ def operands {{
     'Dczid' : CntrlRegNC('MISCREG_DCZID_EL0'),
     'PendingDvm': CntrlRegNC('MISCREG_TLBINEEDSYNC'),
     'VSNUM': CntrlReg('MISCREG_VSNUM'),
+    'StreamMask': CntrlReg('MISCREG_STREAMMASK'),
 
     #Register fields for microops
     'URa' : IntReg('ura'),

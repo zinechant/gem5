@@ -81,9 +81,14 @@ const int NumVecMetaRegs = 40; // 32 Meta + 8 Special
 const int VECMETAOFFSET = NumVecV8ArchRegs + NumVecSpecialRegs +
     NumVecIntrlvRegs;
 const int PREDELEMS = VECMETAOFFSET + 32;
-const int STREAMADDR = VECMETAOFFSET + 33;
-const int STREAMBPOS  = VECMETAOFFSET + 34;
+const int STREAMADDR1 = VECMETAOFFSET + 33;
+const int STREAMADDR2 = VECMETAOFFSET + 34;
 const int STREAMBITS = VECMETAOFFSET + 35;
+const int STREAMSTATE  = VECMETAOFFSET + 36;
+//  8b pos in byte. 8b StreamType.
+//          8b fix width bytes.     8b fix width bytes. 32b number of elements
+//          8b max symbol bits.     8b max code bits.   32b number of elements
+//          64.                     64.                 32b number of elements
 const int NumVecRegs = VECMETAOFFSET + NumVecMetaRegs;
 const int NumVecPredRegs = 18;  // P0-P15, FFR, UREG0
 
