@@ -25,12 +25,12 @@ int main() {
   svbool_t at = svptrue_b8();
 
   v = svmax_n_s32_m(at, v, 124);
-  v = svvmax_n_s32_m(at, v, 127);
-  v = svvadd_n_s32_m(at, v, 126);
-  v = svvadd_n_s32_m(at, v, 1024);
-  v = svvsub_n_s32_m(at, v, 126);
-  v = svvsub_n_s32_m(at, v, 512);
-  v = svvmul_n_s32_m(at, v, 126);
+  v = svvmax_n_m(at, v, 127);
+  v = svvadd_n_m(at, v, 126);
+  v = svvadd_n_m(at, v, 1024);
+  v = svvsub_n_m(at, v, 126);
+  v = svvsub_n_m(at, v, 512);
+  v = svvmul_n_m(at, v, 126);
   v = svvasl_m(at, v, 2);
   svbool_t pg = svvcmple(at, v, svvcpz(at, 16));
 
@@ -42,27 +42,15 @@ int main() {
   v = svvand_n_m(at, v, 511);
   v = svvand_n_m(at, v, 63);
   v = svvbic_n_m(at, v, 63);
-  v = svvpsum_s32_m(at, v);
-  v = svvabs_s32_m(at, v);
-
-  // Undef pattern comes from "_x".
-  // But _x really doesn't have any use.
-  // There is no hardware instruction  implementing don't care
-
+  v = svvpsum(at, v);
+  v = svvabs_m(v, at, v);
 
   int ans = svvaddv(at, v);
-  // ans += svvnum(at, v);
-  // ans += svvrnum();
-  // ans += svvrcnum();
+  ans += svvnum(at, v);
+  ans += svvrnum();
+  ans += svvrcnum();
 
   printf("%d\n", ans);
-
-
-  // ans = 0;
-  // for (int i = 0; i < N; i++) {
-  //   ans += a[i];
-  // }
-  // printf("%d\n", ans);
 
   return ans;
 }
