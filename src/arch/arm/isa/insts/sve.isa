@@ -1972,10 +1972,13 @@ let {{
         code = sveEnabledCheckCode + '''
         assert(!(Op1 >> 12));
         uint32_t sid = Op1 & 127;
-        uint32_t sbid = sid << 2;
-        uint32_t typ = (Op1 >> 8) & 15;
+        uint32_t sbid = sid << 3;
+        uint32_t typ = Op1 >> 8;
         assert(typ == AA64VSStreamState_ub[sbid + 1]);
-        assert((StreamMask >> sid) & 1);
+        assert(!(typ >> 4));
+        typ &= 15;
+        assert(typ && (typ < 4));
+        assert(!((StreamMask >> sid) & 1));
 
         uint8_t pos = AA64VSStreamState_ub[sbid];
         uint8_t destw = AA64VSStreamState_ub[sbid + 2];
@@ -2103,10 +2106,13 @@ let {{
         code += '''
         assert(Op2 >> 12);
         uint32_t sid = Op2 & 127;
-        uint32_t sbid = sid << 2;
-        uint32_t typ = (Op2 >> 8) & 15;
+        uint32_t sbid = sid << 3;
+        uint32_t typ = Op2 >> 8;
         assert(typ == AA64VSStreamState_ub[sbid + 1]);
-        assert((StreamMask >> sid) & 1);
+        assert(typ >> 4);
+        typ &= 15;
+        assert(typ && (typ < 4));
+        assert(!((StreamMask >> sid) & 1));
 
         uint8_t pos = AA64VSStreamState_ub[sbid];
         uint8_t srcw = AA64VSStreamState_ub[sbid + 2];
@@ -2184,9 +2190,9 @@ let {{
 
         code = '''
         uint32_t sid = __builtin_ffs(StreamMask);
-        assert(sid != 0);
+        assert(sid);
         sid--;
-        StreamMask ^= (1UL << sid);
+        StreamMask = StreamMask ^ (1UL << sid);
         uint32_t sbid = sid << 3;
 
         AA64VSStreamAddr1_ud[sid] = XOp1;
@@ -2245,7 +2251,7 @@ let {{
         code = '''
         uint8_t sid = Op1 & 127;
 
-        assert((StreamMask >> sid) & 1);
+        assert(!((StreamMask >> sid) & 1));
         StreamMask = StreamMask ^ (1 << sid);
         assert((Op1 >> 12) == %d);''' % (1 if wnr else 0)
 

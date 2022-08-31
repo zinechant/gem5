@@ -2365,6 +2365,7 @@ namespace Aarch64
                   case 3:
                     return new VSPack<int64_t>(machInst, rd, rn, ra, pg3);
                 }
+                return new Unknown64(machInst);
               case 0x4:
                 if (b31) return new Smulh64(machInst, rdzr, rn, rm);
                 else     return new VSFRStream(machInst, rd, rn, ra, rm);

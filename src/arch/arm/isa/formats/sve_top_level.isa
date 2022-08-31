@@ -214,6 +214,7 @@ namespace Aarch64
                   case 0x3:
                     return decodeSveIntWideImmUnpred(machInst);
                 }
+                return new Unknown64(machInst);
             }
           case 0x8: {
             if (bits(machInst, 15)) {

@@ -100,10 +100,8 @@ namespace Aarch64
                             return new VSVMaxPred(machInst, zdn, zm, pg);
                         }
                     }
-                    break;
-                  default:
-                    return new Unknown64(machInst);
                 }
+                return new Unknown64(machInst);
             }
           case 0x2:
             {
@@ -1620,6 +1618,7 @@ namespace Aarch64
                   case 2: return new VSVCmplt(machInst, pd, zn, imm, pg);
                   case 3: return new VSVCmple(machInst, pd, zn, imm, pg);
                 }
+                return new Unknown64(machInst);
             case 7:
                 switch (size) {
                     case 0: return new VSVCmpeqi(machInst, pd, zn, imm, pg);
@@ -1627,6 +1626,7 @@ namespace Aarch64
                     case 2: return new VSVCmplti(machInst, pd, zn, imm, pg);
                     case 3: return new VSVCmplei(machInst, pd, zn, imm, pg);
                 }
+                return new Unknown64(machInst);
         }
         return new Unknown64(machInst);
     }  // decodeSveIntCmpSImm
