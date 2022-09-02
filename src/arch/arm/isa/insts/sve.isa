@@ -2195,7 +2195,10 @@ let {{
         StreamMask = StreamMask ^ (1UL << sid);
         uint32_t sbid = sid << 3;
 
-        AA64VSStreamAddr1_ud[sid] = XOp1;
+        uint8_t* SBOffset =
+            xc->tcBase()->getSystemPtr()->getPhysMem().getBackingOffset(XOp1);
+
+        AA64VSStreamAddr1_ud[sid] = (uint64_t)(SBOffset + XOp1);
         AA64VSStreamState_ub[sbid] = 0;
         const uint16_t typ = %d;
         AA64VSStreamState_ub[sbid + 1] = typ;''' % (
@@ -2209,8 +2212,8 @@ let {{
 
         elif streamType == StreamT.Huffman:
             code += '''
-        const uint8_t* pmeta = (const uint8_t*)XOp2 + 4;
-        AA64VSStreamAddr2_ud[sid] = XOp2 + 8;
+        const uint8_t* pmeta = SBOffset + XOp2 + 4;
+        AA64VSStreamAddr2_ud[sid] = (uint64_t)(pmeta + 4);
         unsigned msymbbits = BHSD_RB(pmeta);
         unsigned mcodebits = BHSD_RB(pmeta + 1);
         assert(msymbbits <= 24);
@@ -2220,7 +2223,7 @@ let {{
         '''
         elif streamType == StreamT.VarWidth:
             code += '''
-        AA64VSStreamAddr2_ud[sid] = XOp2 + 4;
+        AA64VSStreamAddr2_ud[sid] = (uint64_t)(SBOffset + XOp2 + 4);
         AA64VSStreamState_ub[sbid + 2] = 64;
         AA64VSStreamState_ub[sbid + 3] = 64;'''
         else:
@@ -2232,7 +2235,7 @@ let {{
         Dest = sid + (typ << 8);''' % (
             "0" if wnr else "XOp3",
             "0" if wnr else ("XOp3 / Op2" if streamType == StreamT.FixWidth
-                             else "BHSD_RS(XOp2)")
+                             else "BHSD_RS(SBOffset + XOp2)")
             )
 
         base_class = 'DataX2RegOp' if wnr else 'DataX3RegOp'

@@ -245,6 +245,8 @@ class PhysicalMemory : public Serializable
     std::vector<BackingStoreEntry> getBackingStore() const
     { return backingStore; }
 
+    uint8_t* getBackingOffset(Addr paddr, uint32_t size=1) const;
+
     /**
      * Perform an untimed memory access and update all the state
      * (e.g. locked addresses) and statistics accordingly. The packet

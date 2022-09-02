@@ -491,5 +491,17 @@ PhysicalMemory::unserializeStore(CheckpointIn &cp)
               filename);
 }
 
+uint8_t*
+PhysicalMemory::getBackingOffset(Addr paddr, uint32_t size) const {
+    AddrRange r(paddr, paddr + size);
+    for (const auto& entry: backingStore) {
+        if (r.isSubset(entry.range)) {
+            return entry.pmem - entry.range.start();
+        }
+    }
+
+    return nullptr;
+}
+
 } // namespace memory
 } // namespace gem5
