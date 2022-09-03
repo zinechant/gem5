@@ -2064,7 +2064,7 @@ let {{
         if (typ == 3) {
             AA64VSStreamAddr2_ud[sid] = (uint64_t)(pmeta + elems);
         }
-        AA64VSStreamBits_ud[sid] -= bits;
+        AA64VSStreamBits_ud[sid] = AA64VSStreamBits_ud[sid] - bits;
         BHSD_WS(AA64VSStreamState_ub + sbid + 4) -= elems;'''
         else:
             code += '''
@@ -2169,7 +2169,7 @@ let {{
         if (typ == 3) {
             AA64VSStreamAddr2_ud[sid] = (uint64_t)(pmeta + elems);
         }
-        AA64VSStreamBits_ud[sid] += bits;
+        AA64VSStreamBits_ud[sid] = AA64VSStreamBits_ud[sid] + bits;
         BHSD_WS(AA64VSStreamState_ub + sbid + 4) += elems;'''
 
         iop = ArmInstObjParams(name, 'VS' + Name, 'SveTerPredOp',
@@ -2263,12 +2263,18 @@ let {{
 
         if wnr:
             code += '''
+        uint8_t sbid = sid << 3;
         uint8_t typ = (Op1 >> 8) & 15;
         assert(typ && (typ < 4));
-        if (typ != 1) {
+        if (typ == 2) {
             uint32_t elems = BHSD_RS(AA64VSStreamState_ub + sbid + 4);
-            uint64_t offset = (typ == 2) ? 8 : (4 + elems);
-            BHSD_WS(AA64VSStreamAddr2_ud[sid] - offset) = elems;
+            uint64_t pmeta = AA64VSStreamAddr2_ud[sid] - 8;
+            BHSD_WS(pmeta) = elems;
+            BHSD_WB(pmeta + 4) = AA64VSStreamState_ub[sbid + 2];
+            BHSD_WB(pmeta + 5) = AA64VSStreamState_ub[sbid + 3];
+        } else if (typ == 3) {
+            uint32_t elems = BHSD_RS(AA64VSStreamState_ub + sbid + 4);
+            BHSD_WS(AA64VSStreamAddr2_ud[sid] - elems - 4) = elems;
         }'''
 
         iop = ArmInstObjParams(name, 'VS' + Name, 'DataX1RegOp',
@@ -4334,7 +4340,7 @@ let {{
     vsStreamInst('vwstream', 'VWStream', 'IntAluOp', StreamT.VarWidth, True)
 
     vsEStreamInst('erstream', 'ERStream', 'IntAluOp', False)
-    vsEStreamInst('ewstream', 'EWStream', 'IntAluOp', False)
+    vsEStreamInst('ewstream', 'EWStream', 'IntAluOp', True)
 
     fpTypes = ('uint16_t', 'uint32_t', 'uint64_t')
     signedTypes = ('int8_t', 'int16_t', 'int32_t', 'int64_t')
