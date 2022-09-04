@@ -119,15 +119,15 @@ static inline void AdvanceBits(uint8_t *&pdata, uint8_t& pos, uint8_t bits) {
 static inline uint64_t UnpackBits(const uint8_t *pdata, uint8_t pos,
                                   uint8_t bits) {
     uint64_t x = (*pdata) >> pos;
-    x |= (BHSD_RD(pdata + 1) << (8 - pos));
+    x |= ((BHSD_RD(pdata + 1) & MASK(56 + pos)) << (8 - pos));
     return x & MASK(bits);
 }
 
 static inline void PackBits(uint8_t *pdata, uint8_t pos, uint8_t bits,
                             uint64_t x) {
     x &= MASK(bits);
-    *pdata &= (MASK(8) << (pos + bits < 8 ? 8 : pos + bits)) + MASK(pos);
-    *pdata |= (x << pos);
+    *pdata &= (MASK(8) << (pos + bits < 8 ? pos + bits : 8)) + MASK(pos);
+    *pdata |= ((x << pos) & MASK(8));
     if (bits + pos > 8) {
         uint8_t left = bits + pos - 8;
         pdata++;
