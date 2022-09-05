@@ -2000,7 +2000,7 @@ let {{
         else:
             if consume:
                 code += '''
-        for (; bits < AA64VSStreamBits_ud[sid]; elems++) {'''
+        for (; elems < Op2 && bits < AA64VSStreamBits_ud[sid]; elems++) {'''
             else:
                 code += '''
         AA64FpDest_ub[0] = 0;
@@ -2023,10 +2023,7 @@ let {{
                 x = y >> 8;
             } else if (typ == 3) {
                 x = (pmeta[elems] >> 7) ? 0 - x : x;
-            }
-
-            AdvanceBits(pdata, pos, b);
-            bits += b;'''
+            }'''
 
         if (predType == PredType.ZERO):
             code += '''
@@ -2035,13 +2032,7 @@ let {{
         if (types):
             code += '''
             AA64FpDest_x[elems] = x;'''
-        elif consume:
-            code += '''
-            if (elems == Op2 - 1) {
-                elems++;
-                break;
-            }'''
-        else:
+        elif not consume:
             code += '''
             metad[elems] = VSPackBytes(pdest, x);
             obs += BITS2BYTES(metad[elems]);
@@ -2050,6 +2041,8 @@ let {{
             }'''
 
         code += '''
+            AdvanceBits(pdata, pos, b);
+            bits += b;
         }'''
 
         code += '''
