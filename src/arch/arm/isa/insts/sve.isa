@@ -2019,6 +2019,7 @@ let {{
             uint64_t x = UnpackBits(pdata, pos, b);
             if (typ == 2) {
                 uint32_t y = BHSD_RS(pmeta + (x << dicw));
+                y &= MASK(1 << (3 + dicw));
                 b = y & 127;
                 x = y >> 8;
             } else if (typ == 3) {
