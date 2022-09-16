@@ -2000,6 +2000,7 @@ let {{
         else:
             if consume:
                 code += '''
+        assert(Op2);
         for (; elems < Op2 && bits < AA64VSStreamBits_ud[sid]; elems++) {'''
             else:
                 code += '''
@@ -2062,6 +2063,7 @@ let {{
         BHSD_WS(AA64VSStreamState_ub + sbid + 4) -= elems;'''
         else:
             code += '''
+        VSNUM = elems < VSNUM ? elems : VSNUM;
         BHSD_WH(AA64VSMetaD1_ub) = elems;'''
 
         if types:
@@ -2134,6 +2136,7 @@ let {{
         unsigned inum = BHSD_RH(AA64VSMetaS1_ub);
         unsigned pnum = AA64VSPredNumE_uh[gp];
         inum = pnum < inum ? pnum : inum;
+        inum = VSNUM < inum ? VSNUM : inum;
 
         for (int i = 0; i < inum; i++) {
             int64_t x = VSUnpackBytes(psrc1, meta1[i]);
