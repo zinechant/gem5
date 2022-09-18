@@ -1891,7 +1891,7 @@ namespace Aarch64
                     if (bits(machInst, 11) == 0x0) {
                         if (bits(machInst, 16) == 0x0) {
                             return decodeSveReadPredFromFFRPred(machInst);
-                        } else if (bits(machInst, 8, 4) == 0x0) {
+                        } else if (bits(machInst, 8, 5) == 0x0) {
                             return decodeSveReadPredFromFFRUnpred(machInst);
                         }
                     }
