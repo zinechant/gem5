@@ -4179,7 +4179,7 @@ let {{
 
     vDivCode = 'destElem = srcElem1 / srcElem2;'
     # VDIV (vectors, predicated)
-    vsBinInst('vdiv', 'VDivPred', 'SimdMultOp', vDivCode, PredType.MERGE, True)
+    vsBinInst('vdiv', 'VDivPred', 'SimdDivOp', vDivCode, PredType.MERGE, True)
 
 
     # VMAX (immediate)
@@ -4362,7 +4362,7 @@ let {{
     vsUnpackInst('unpack', 'Unpack', 'SimdAluOp', signedTypes)
     vsUnpackInst('vunpack', 'VUnpackUnpred', 'SimdAluOp', None)
     vsUnpackInst('vunpack', 'VUnpackPred', 'SimdAluOp', None, PredType.ZERO)
-    vsUnpackInst('crstream', 'CRStream', 'IntAluOp', None, consume=True)
+    vsUnpackInst('crstream', 'CRStream', 'SimdAluOp', None, consume=True)
 
     # ABS
     absCode = 'destElem = (Element) std::abs(srcElem1);'
