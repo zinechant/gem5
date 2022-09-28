@@ -274,10 +274,15 @@ scratchpad_start = Addr(args.scratchpad_addr)
 scratchpad_size = Addr(args.scratchpad_size).value
 streambuffer_start = Addr(args.streambuffer_addr).value
 streambuffer_size = Addr(args.streambuffer_size).value
+intv_size = Addr("1GiB").value
 for process in multiprocesses:
     if args.scratchpad:
-        process.map(scratchpad_start, scratchpad_start, scratchpad_size)
+        for addr in range(scratchpad_start, scratchpad_start + scratchpad_size,
+                          intv_size):
+            process.map(addr, addr, intv_size)
     if args.streambuffer:
-        process.map(streambuffer_start, streambuffer_start, streambuffer_size)
+        for addr in range(streambuffer_start,
+                          streambuffer_start + streambuffer_size, intv_size):
+            process.map(addr, addr, intv_size)
 
 Simulation.run(args, root, system, FutureClass)

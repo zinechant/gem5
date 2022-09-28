@@ -1970,10 +1970,11 @@ let {{
         assert(predType == PredType.NONE or predType == PredType.ZERO)
 
         code = sveEnabledCheckCode + '''
-        assert(!(Op1 >> 12));
-        uint32_t sid = Op1 & 127;
+        unsigned mop1 = XOp1 & MASK(32);
+        assert(!(mop1 >> 12));
+        uint32_t sid = mop1 & 127;
         uint32_t sbid = sid << 3;
-        uint32_t typ = Op1 >> 8;
+        uint32_t typ = mop1 >> 8;
         assert(typ == AA64VSStreamState_ub[sbid + 1]);
         assert(!(typ >> 4));
         typ &= 15;
@@ -2000,8 +2001,9 @@ let {{
         else:
             if consume:
                 code += '''
-        assert(Op2);
-        for (; elems < Op2 && bits < AA64VSStreamBits_ud[sid]; elems++) {'''
+        unsigned mop2 = XOp2 & MASK(32);
+        assert(mop2);
+        for (; elems < mop2 && bits < AA64VSStreamBits_ud[sid]; elems++) {'''
             else:
                 code += '''
         AA64FpDest_ub[0] = 0;
@@ -2100,10 +2102,11 @@ let {{
         code = sveEnabledCheckCode
 
         code += '''
-        assert(Op2 >> 12);
-        uint32_t sid = Op2 & 127;
+        unsigned mop2 = XOp2 & MASK(32);
+        assert(mop2 >> 12);
+        uint32_t sid = mop2 & 127;
         uint32_t sbid = sid << 3;
-        uint32_t typ = Op2 >> 8;
+        uint32_t typ = mop2 >> 8;
         assert(typ == AA64VSStreamState_ub[sbid + 1]);
         assert(typ >> 4);
         typ &= 15;
@@ -2160,7 +2163,7 @@ let {{
             elems++;
         }
 
-        Dest = elems;
+        XDest = elems;
         AA64VSStreamAddr1_ud[sid] = (uint64_t)pdata;
         AA64VSStreamState_ub[sbid] = pos;
         if (typ == 3) {
@@ -2203,8 +2206,9 @@ let {{
 
         if streamType == StreamT.FixWidth:
             code += '''
-        AA64VSStreamState_ub[sbid + 2] = Op2;
-        AA64VSStreamState_ub[sbid + 3] = Op2;'''
+        unsigned mop2 = XOp2 & MASK(32);
+        AA64VSStreamState_ub[sbid + 2] = mop2;
+        AA64VSStreamState_ub[sbid + 3] = mop2;'''
 
 
         elif streamType == StreamT.Huffman:
@@ -2229,9 +2233,9 @@ let {{
         code += '''
         AA64VSStreamBits_ud[sid] = %s;
         BHSD_WS(AA64VSStreamState_ub + sbid + 4) = %s;
-        Dest = sid + (typ << 8);''' % (
+        XDest = sid + (typ << 8);''' % (
             "0" if wnr else "XOp3",
-            "0" if wnr else ("XOp3 / Op2" if streamType == StreamT.FixWidth
+            "0" if wnr else ("XOp3 / mop2" if streamType == StreamT.FixWidth
                              else "BHSD_RS(SBOffset + XOp2)")
             )
 
@@ -2249,11 +2253,12 @@ let {{
         global header_output, exec_output, decoders
 
         code = '''
-        uint8_t sid = Op1 & 127;
+        unsigned mop1 = XOp1 & MASK(32);
+        uint8_t sid = mop1 & 127;
 
         assert(!((StreamMask >> sid) & 1));
         StreamMask = StreamMask ^ (1 << sid);
-        assert((Op1 >> 12) == %d);''' % (1 if wnr else 0)
+        assert((mop1 >> 12) == %d);''' % (1 if wnr else 0)
 
         code += '''
         XDest = AA64VSStreamBits_ud[sid];'''
@@ -2261,7 +2266,7 @@ let {{
         if wnr:
             code += '''
         uint8_t sbid = sid << 3;
-        uint8_t typ = (Op1 >> 8) & 15;
+        uint8_t typ = (mop1 >> 8) & 15;
         assert(typ && (typ < 4));
         if (typ == 2) {
             uint32_t elems = BHSD_RS(AA64VSStreamState_ub + sbid + 4);
@@ -2950,7 +2955,7 @@ let {{
     def vsRNum(clear):
         global header_output, exec_output, decoders
         code = sveEnabledCheckCode + '''
-        Dest = VSNUM;'''
+        XDest = VSNUM;'''
 
         if (clear):
             code  += '''
