@@ -125,7 +125,7 @@ class MinorFUPool(SimObject):
     funcUnits = VectorParam.MinorFU("functional units")
 
 class MinorDefaultIntFU(MinorFU):
-    opClasses = minorMakeOpClassSet(['IntAlu'])
+    opClasses = minorMakeOpClassSet(['IntAlu', "IntAluMinor"])
     timings = [MinorFUTiming(description="Int",
         srcRegsRelativeLats=[2])]
     opLat = 3

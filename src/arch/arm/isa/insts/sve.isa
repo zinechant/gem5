@@ -2969,11 +2969,11 @@ let {{
         if clear:
             iop = ArmInstObjParams('vrcnum' , 'VSVRCNum',
                 'SvePredUnaryWImplicitSrcOp',
-                {'code': code, 'op_class': 'SimdAluOp'})
+                {'code': code, 'op_class': 'IntAluMinorOp'})
         else:
             iop = ArmInstObjParams('vrnum' , 'VSVRNum',
                 'SvePredUnaryWImplicitSrcOp',
-                {'code': code, 'op_class': 'SimdAluOp'})
+                {'code': code, 'op_class': 'IntAluMinorOp'})
         header_output += VSVRNumOpDeclare.subst(iop)
 
         exec_output += SveNonTemplatedOpExecute.subst(iop)
@@ -4372,7 +4372,7 @@ let {{
     vsUnpackInst('unpack', 'Unpack', 'SimdAluOp', signedTypes)
     vsUnpackInst('vunpack', 'VUnpackUnpred', 'SimdAluOp', None)
     vsUnpackInst('vunpack', 'VUnpackPred', 'SimdAluOp', None, PredType.ZERO)
-    vsUnpackInst('crstream', 'CRStream', 'SimdAluOp', None, consume=True)
+    vsUnpackInst('crstream', 'CRStream', 'IntAluMinorOp', None, consume=True)
 
     # ABS
     absCode = 'destElem = (Element) std::abs(srcElem1);'

@@ -33,7 +33,8 @@ from m5.objects import *
 
 # Simple ALU Instructions have a latency of 3
 class ex5_LITTLE_Simple_Int(MinorDefaultIntFU):
-    opList = [ OpDesc(opClass='IntAlu', opLat=4) ]
+    opList = [ OpDesc(opClass='IntAlu', opLat=4),
+               OpDest(opClass='IntAluMinor', opLat=1) ]
 
 # Complex ALU instructions have a variable latencies
 class ex5_LITTLE_Complex_IntMul(MinorDefaultIntMulFU):
