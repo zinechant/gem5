@@ -2,7 +2,6 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "arm_neon.h"
 #include "arm_sve.h"
 
 int main() {
@@ -58,3 +57,27 @@ int main() {
 
   return ans;
 }
+
+// void sve_unpack(int w, int bits, const void *data) {
+//   // read 2B around each value. truncate and align
+//   for (int i = 0; i < bits / w; i += svcnth()) {
+//     svbool_t pg = svwhilelt_b32(i, bits);
+//     svuint32_t vid = svdup_u32(0);
+//     for (int j = 0; j < w; j++)
+//       vid = svadd_m(pg, vid, svindex_u32(0, 1));
+//     svuint32_t vbid = svlsr_m(pg, vid, 3);
+//     svint32_t vx = svld1sh_gather_offset_s32(pg, data, vbid);
+//     vid = svand_m(pg, vid, 7);
+//     vx = svasr_m(pg, vx, vid);
+//     vx = svand_m(pg, vx, (1 << w) - 1);
+//     // vx parsed and aligned in w=32b vector
+//   }
+// }
+
+// void pup_unpack(int w, int bits, const void *data) {
+//   int sid = frstream(data, w, bits);
+//   for (int i = 0; i < bits / w; i += svcntb()) {
+//     svint8_t vx = svunpack_s8(sid);
+//     // vx parsed and aligned for compute
+//   }
+// }
