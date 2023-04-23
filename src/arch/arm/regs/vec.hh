@@ -77,19 +77,9 @@ const int NumVecV7ArchRegs  = 16; // Q0-Q15
 const int NumVecV8ArchRegs  = 32; // V0-V31
 const int NumVecSpecialRegs = 8;
 const int NumVecIntrlvRegs = 4;
-const int NumVecMetaRegs = 40; // 32 Meta + 8 Special
-const int VECMETAOFFSET = NumVecV8ArchRegs + NumVecSpecialRegs +
-    NumVecIntrlvRegs;
-const int PREDELEMS = VECMETAOFFSET + 32;
-const int STREAMADDR1 = VECMETAOFFSET + 33;
-const int STREAMADDR2 = VECMETAOFFSET + 34;
-const int STREAMBITS = VECMETAOFFSET + 35;
-const int STREAMSTATE  = VECMETAOFFSET + 36;
-//  8b pos in byte. 8b StreamType.
-//          8b fix width bytes.     8b fix width bytes. 32b number of elements
-//          8b max symbol bits.     8b max code bits.   32b number of elements
-//          64.                     64.                 32b number of elements
-const int NumVecRegs = VECMETAOFFSET + NumVecMetaRegs;
+const int NumVecMetaRegs = 40;  // 32 Meta + 8 Special
+const int NumVecRegs =
+    NumVecV8ArchRegs + NumVecSpecialRegs + NumVecIntrlvRegs + NumVecMetaRegs;
 const int NumVecPredRegs = 18;  // P0-P15, FFR, UREG0
 
 // Vec, PredVec indices
@@ -101,8 +91,30 @@ const int INTRLVREG3 = INTRLVREG0 + 3;
 const int VECREG_UREG0 = 32;
 const int PREDREG_FFR = 16;
 const int PREDREG_UREG0 = 17;
+const int VECMETAOFFSET =
+    NumVecV8ArchRegs + NumVecSpecialRegs + NumVecIntrlvRegs;
 
-} // namespace ArmISA
-} // namespace gem5
+// To remember how many predicates is acutally effective coming from sve
+const int PREDELEMS = VECMETAOFFSET + 32;
+
+// In OOO, MiscReg doesn't get written in instruction exec but later at commit.
+// So we use vec reg instead. First 64b for StreamMask. Second 64b for NumE.
+const int INEXECMETA = VECMETAOFFSET + 33;
+
+// Stream Data Addr. Raw pointer for each stream.
+const int STREAMADDR1 = VECMETAOFFSET + 34;
+// Stream Meta Addr. Raw pointer for each stream.
+const int STREAMADDR2 = VECMETAOFFSET + 35;
+// Stream Bits. Raw 64bit unsigned integers for each stream.
+const int STREAMBITS = VECMETAOFFSET + 36;
+
+//  8b pos in byte. 8b StreamType.
+//          8b fix width bytes.     8b fix width bytes. 32b number of elements
+//          8b max symbol bits.     8b max code bits.   32b number of elements
+//          64.                     64.                 32b number of elements
+const int STREAMSTATE = VECMETAOFFSET + 37;
+
+}  // namespace ArmISA
+}  // namespace gem5
 
 #endif

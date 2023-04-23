@@ -136,7 +136,7 @@ class O3_ARM_v7a_3(ArmO3CPU):
     forwardComSize = 5
     numPhysIntRegs = 128
     numPhysFloatRegs = 192
-    numPhysVecRegs = 48
+    numPhysVecRegs = 128
     numIQEntries = 32
     numROBEntries = 40
 

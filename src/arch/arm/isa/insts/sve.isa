@@ -36,6 +36,8 @@
 // @file Definition of SVE instructions.
 
 output header {{
+    const int MaxNumStreams = 32;
+    const int MaxNumPreds = 32;
 
     // Decodes unary, constructive, predicated (merging) SVE instructions,
     // handling signed and unsigned variants.
@@ -1329,6 +1331,9 @@ let {{
             PDest_x[i] = last;
             srcElem1++;
         }
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = eCount;
         CondCodesNZ = (first << 1) | none;
         CondCodesC = !last;
@@ -1975,19 +1980,20 @@ let {{
         uint32_t sid = mop1 & 127;
         uint32_t sbid = sid << 3;
         uint32_t typ = mop1 >> 8;
-        assert(typ == AA64VSStreamState_ub[sbid + 1]);
+        assert(typ == AA64VSStreamStateMG_ub[sbid + 1]);
         assert(!(typ >> 4));
         typ &= 15;
         assert(typ && (typ < 4));
-        assert(!((StreamMask >> sid) & 1));
+        assert((AA64VSExecMerge_ud[0] >> sid) & 1);
 
-        uint8_t pos = AA64VSStreamState_ub[sbid];
-        uint8_t destw = AA64VSStreamState_ub[sbid + 2];
-        uint8_t srcw = AA64VSStreamState_ub[sbid + 3];
+        uint8_t pos = AA64VSStreamStateMG_ub[sbid];
+        uint8_t destw = AA64VSStreamStateMG_ub[sbid + 2];
+        uint8_t srcw = AA64VSStreamStateMG_ub[sbid + 3];
         uint8_t dicw = (destw <= 8 ? 1 : 2);  // Only used in type 2;
 
-        const uint8_t* pdata = (const uint8_t*)AA64VSStreamAddr1_ud[sid];
-        const uint8_t* const pmeta = (const uint8_t*)AA64VSStreamAddr2_ud[sid];
+        const uint8_t* pdata = (const uint8_t*)AA64VSStreamAddr1MG_ud[sid];
+        const uint8_t* const pmeta =
+            (const uint8_t*)AA64VSStreamAddr2MG_ud[sid];
 
         uint64_t bits = 0;
         uint32_t elems = 0;'''
@@ -1997,13 +2003,14 @@ let {{
         assert((sizeof(Element) << 3) >= destw);
         uint32_t eCount = ArmStaticInst::getCurSveVecLen<Element>(
             xc->tcBase());
-        for (; elems < eCount && bits < AA64VSStreamBits_ud[sid]; elems++) {'''
+        for (; elems < eCount && bits < AA64VSStreamBitsMG_ud[sid];
+               elems++) {'''
         else:
             if consume:
                 code += '''
         unsigned mop2 = XOp2 & MASK(32);
         assert(mop2);
-        for (; elems < mop2 && bits < AA64VSStreamBits_ud[sid]; elems++) {'''
+        for (; elems < mop2 && bits < AA64VSStreamBitsMG_ud[sid]; elems++) {'''
             else:
                 code += '''
         AA64FpDest_ub[0] = 0;
@@ -2012,10 +2019,9 @@ let {{
         uint8_t *metad = AA64VSMetaD1_ub + 2;
         uint32_t B = ArmStaticInst::getCurSveVecLenInBits(xc->tcBase()) / 8;
         uint32_t inum = %s;
-        for (uint32_t obs = 0; elems < inum && bits < AA64VSStreamBits_ud[sid];
-            elems++) {''' % ("B" if predType == PredType.NONE else
-                             "AA64VSPredNumE_uh[gp]")
-
+        for (uint32_t obs = 0; elems < inum &&
+            bits < AA64VSStreamBitsMG_ud[sid]; elems++) {''' % (
+                "B" if predType == PredType.NONE else "AA64VSPredNumE_uh[gp]")
 
         code += '''
             uint8_t b = (typ == 3) ? pmeta[elems] & 127 : srcw;
@@ -2055,22 +2061,33 @@ let {{
         }'''
 
         code += '''
-        if (bits == AA64VSStreamBits_ud[sid]) {
-            assert(BHSD_RS(AA64VSStreamState_ub + sbid + 4) == elems);
+        if (bits == AA64VSStreamBitsMG_ud[sid]) {
+            assert(BHSD_RS(AA64VSStreamStateMG_ub + sbid + 4) == elems);
         }'''
 
         if (types or consume):
             code += '''
+        for (int i = 0; i < MaxNumStreams; i++) {
+            AA64VSStreamAddr1_ud[i] = AA64VSStreamAddr1MG_ud[i];
+            AA64VSStreamAddr2_ud[i] = AA64VSStreamAddr2MG_ud[i];
+            AA64VSStreamBits_ud[i] = AA64VSStreamBitsMG_ud[i];
+        }
+        for (int i = 0; i < MaxNumStreams * 4; i++) {
+            AA64VSStreamState_ub[i] = AA64VSStreamStateMG_ub[i];
+        }
+
         AA64VSStreamAddr1_ud[sid] = (uint64_t)pdata;
         AA64VSStreamState_ub[sbid] = pos;
         if (typ == 3) {
             AA64VSStreamAddr2_ud[sid] = (uint64_t)(pmeta + elems);
         }
-        AA64VSStreamBits_ud[sid] = AA64VSStreamBits_ud[sid] - bits;
+        AA64VSStreamBits_ud[sid] = AA64VSStreamBitsMG_ud[sid] - bits;
         BHSD_WS(AA64VSStreamState_ub + sbid + 4) -= elems;'''
         else:
             code += '''
-        VSNUM = elems < VSNUM ? elems : VSNUM;
+        AA64VSExecMeta_ud[0] = AA64VSExecMerge_ud[0];
+        AA64VSExecMeta_ud[1] = elems < AA64VSExecMerge_ud[1] ?
+                               elems : AA64VSExecMerge_ud[1];
         BHSD_WH(AA64VSMetaD1_ub) = elems;'''
 
         if types:
@@ -2112,20 +2129,20 @@ let {{
         uint32_t sid = mop2 & 127;
         uint32_t sbid = sid << 3;
         uint32_t typ = mop2 >> 8;
-        assert(typ == AA64VSStreamState_ub[sbid + 1]);
+        assert(typ == AA64VSStreamStateMG_ub[sbid + 1]);
         assert(typ >> 4);
         typ &= 15;
         assert(typ && (typ < 4));
-        assert(!((StreamMask >> sid) & 1));
+        assert((AA64VSExecMerge_ud[0] >> sid) & 1);
 
-        uint8_t pos = AA64VSStreamState_ub[sbid];
-        uint8_t srcw = AA64VSStreamState_ub[sbid + 2];
-        uint8_t destw = AA64VSStreamState_ub[sbid + 3];
+        uint8_t pos = AA64VSStreamStateMG_ub[sbid];
+        uint8_t srcw = AA64VSStreamStateMG_ub[sbid + 2];
+        uint8_t destw = AA64VSStreamStateMG_ub[sbid + 3];
 
         uint8_t dicw = (destw <= 8 ? 1 : 2);  // Only used in type 2;
 
-        uint8_t* pdata = (uint8_t*)AA64VSStreamAddr1_ud[sid];
-        uint8_t* const pmeta = (uint8_t*)AA64VSStreamAddr2_ud[sid];
+        uint8_t* pdata = (uint8_t*)AA64VSStreamAddr1MG_ud[sid];
+        uint8_t* const pmeta = (uint8_t*)AA64VSStreamAddr2MG_ud[sid];
 
         uint32_t elems = 0;
         uint64_t bits = 0;'''
@@ -2144,7 +2161,7 @@ let {{
         unsigned inum = BHSD_RH(AA64VSMetaS1_ub);
         unsigned pnum = AA64VSPredNumE_uh[gp];
         inum = pnum < inum ? pnum : inum;
-        inum = VSNUM < inum ? VSNUM : inum;
+        inum = AA64VSExecMerge_ud[1] < inum ? AA64VSExecMerge_ud[1] : inum;
 
         for (int i = 0; i < inum; i++) {
             int64_t x = VSUnpackBytes(psrc1, meta1[i]);
@@ -2169,12 +2186,21 @@ let {{
         }
 
         XDest = elems;
+
+        for (int i = 0; i < MaxNumStreams; i++) {
+            AA64VSStreamAddr1_ud[i] = AA64VSStreamAddr1MG_ud[i];
+            AA64VSStreamAddr2_ud[i] = AA64VSStreamAddr2MG_ud[i];
+            AA64VSStreamBits_ud[i] = AA64VSStreamBitsMG_ud[i];
+        }
+        for (int i = 0; i < MaxNumStreams * 4; i++) {
+            AA64VSStreamState_ub[i] = AA64VSStreamStateMG_ub[i];
+        }
         AA64VSStreamAddr1_ud[sid] = (uint64_t)pdata;
         AA64VSStreamState_ub[sbid] = pos;
         if (typ == 3) {
             AA64VSStreamAddr2_ud[sid] = (uint64_t)(pmeta + elems);
         }
-        AA64VSStreamBits_ud[sid] = AA64VSStreamBits_ud[sid] + bits;
+        AA64VSStreamBits_ud[sid] = AA64VSStreamBitsMG_ud[sid] + bits;
         BHSD_WS(AA64VSStreamState_ub + sbid + 4) += elems;'''
 
         iop = ArmInstObjParams(name, 'VS' + Name, 'SveTerPredOp',
@@ -2194,15 +2220,23 @@ let {{
         global header_output, exec_output, decoders
 
         code = '''
-        uint32_t sid = __builtin_ffs(StreamMask);
+        uint32_t sid = __builtin_ffs(~AA64VSExecMerge_ud[0]);
         assert(sid);
         sid--;
-        StreamMask = StreamMask ^ (1UL << sid);
+        AA64VSExecMeta_ud[0] = AA64VSExecMerge_ud[0] ^ (1UL << sid);
+        AA64VSExecMeta_ud[1] = AA64VSExecMerge_ud[1];
         uint32_t sbid = sid << 3;
 
         uint8_t* SBOffset =
             xc->tcBase()->getSystemPtr()->getPhysMem().getBackingOffset(XOp1);
 
+        for (int i = 0; i < MaxNumStreams; i++) {
+            AA64VSStreamAddr1_ud[i] = AA64VSStreamAddr1MG_ud[i];
+            AA64VSStreamBits_ud[i] = AA64VSStreamBitsMG_ud[i];
+        }
+        for (int i = 0; i < MaxNumStreams * 4; i++) {
+            AA64VSStreamState_ub[i] = AA64VSStreamStateMG_ub[i];
+        }
         AA64VSStreamAddr1_ud[sid] = (uint64_t)(SBOffset + XOp1);
         AA64VSStreamState_ub[sbid] = 0;
         const uint16_t typ = %d;
@@ -2218,6 +2252,9 @@ let {{
 
         elif streamType == StreamT.Huffman:
             code += '''
+        for (int i = 0; i < MaxNumStreams; i++) {
+            AA64VSStreamAddr2_ud[i] = AA64VSStreamAddr2MG_ud[i];
+        }
         const uint8_t* pmeta = SBOffset + XOp2 + 4;
         AA64VSStreamAddr2_ud[sid] = (uint64_t)(pmeta + 4);
         unsigned msymbbits = BHSD_RB(pmeta);
@@ -2229,6 +2266,9 @@ let {{
         '''
         elif streamType == StreamT.VarWidth:
             code += '''
+        for (int i = 0; i < MaxNumStreams; i++) {
+            AA64VSStreamAddr2_ud[i] = AA64VSStreamAddr2MG_ud[i];
+        }
         AA64VSStreamAddr2_ud[sid] = (uint64_t)(SBOffset + XOp2 + 4);
         AA64VSStreamState_ub[sbid + 2] = 64;
         AA64VSStreamState_ub[sbid + 3] = 64;'''
@@ -2261,12 +2301,13 @@ let {{
         unsigned mop1 = XOp1 & MASK(32);
         uint8_t sid = mop1 & 127;
 
-        assert(!((StreamMask >> sid) & 1));
-        StreamMask = StreamMask ^ (1 << sid);
+        assert((AA64VSExecMerge_ud[0] >> sid) & 1);
+        AA64VSExecMeta_ud[0] = AA64VSExecMerge_ud[0] ^ (1 << sid);
+        AA64VSExecMeta_ud[1] = AA64VSExecMerge_ud[1];
         assert((mop1 >> 12) == %d);''' % (1 if wnr else 0)
 
         code += '''
-        XDest = AA64VSStreamBits_ud[sid];'''
+        XDest = AA64VSStreamBitsMG_ud[sid];'''
 
         if wnr:
             code += '''
@@ -2274,14 +2315,14 @@ let {{
         uint8_t typ = (mop1 >> 8) & 15;
         assert(typ && (typ < 4));
         if (typ == 2) {
-            uint32_t elems = BHSD_RS(AA64VSStreamState_ub + sbid + 4);
-            uint64_t pmeta = AA64VSStreamAddr2_ud[sid] - 8;
+            uint32_t elems = BHSD_RS(AA64VSStreamStateMG_ub + sbid + 4);
+            uint64_t pmeta = AA64VSStreamAddr2MG_ud[sid] - 8;
             BHSD_WS(pmeta) = elems;
-            BHSD_WB(pmeta + 4) = AA64VSStreamState_ub[sbid + 2];
-            BHSD_WB(pmeta + 5) = AA64VSStreamState_ub[sbid + 3];
+            BHSD_WB(pmeta + 4) = AA64VSStreamStateMG_ub[sbid + 2];
+            BHSD_WB(pmeta + 5) = AA64VSStreamStateMG_ub[sbid + 3];
         } else if (typ == 3) {
-            uint32_t elems = BHSD_RS(AA64VSStreamState_ub + sbid + 4);
-            BHSD_WS(AA64VSStreamAddr2_ud[sid] - elems - 4) = elems;
+            uint32_t elems = BHSD_RS(AA64VSStreamStateMG_ub + sbid + 4);
+            BHSD_WS(AA64VSStreamAddr2MG_ud[sid] - elems - 4) = elems;
         }'''
 
         iop = ArmInstObjParams(name, 'VS' + Name, 'DataX1RegOp',
@@ -2386,7 +2427,9 @@ let {{
         }
 
         BHSD_WH(AA64VSMetaD1_ub) = onum;
-        VSNUM = onum < VSNUM ? onum : VSNUM;'''
+        AA64VSExecMeta_ud[0] = AA64VSExecMerge_ud[0];
+        AA64VSExecMeta_ud[1] = onum < AA64VSExecMerge_ud[1] ?
+                               onum : AA64VSExecMerge_ud[1];'''
 
         if predType == PredType.NONE:
             baseClass = 'SveBinUnpredOp'
@@ -2494,7 +2537,9 @@ let {{
         }
 
         BHSD_WH(AA64VSMetaD1_ub) = onum;
-        VSNUM = onum < VSNUM ? onum : VSNUM;'''
+        AA64VSExecMeta_ud[0] = AA64VSExecMerge_ud[0];
+        AA64VSExecMeta_ud[1] = onum < AA64VSExecMerge_ud[1] ?
+                               onum : AA64VSExecMerge_ud[1];'''
 
         iop = ArmInstObjParams(name, 'VS' + Name,
         'Sve%sWideImm%sOp' % (
@@ -2582,7 +2627,9 @@ let {{
         }
 
         BHSD_WH(AA64VSMetaD1_ub) = onum;
-        VSNUM = onum < VSNUM ? onum : VSNUM;'''
+        AA64VSExecMeta_ud[0] = AA64VSExecMerge_ud[0];
+        AA64VSExecMeta_ud[1] = onum < AA64VSExecMerge_ud[1] ?
+                               onum : AA64VSExecMerge_ud[1];'''
 
         iop = ArmInstObjParams(name, 'VS' + Name,
                                'SveUnaryPredOp' if predType != PredType.NONE
@@ -2628,7 +2675,9 @@ let {{
         }
 
         BHSD_WH(AA64VSMetaD1_ub) = onum;
-        VSNUM = onum < VSNUM ? onum : VSNUM;'''
+        AA64VSExecMeta_ud[0] = AA64VSExecMerge_ud[0];
+        AA64VSExecMeta_ud[1] = onum < AA64VSExecMerge_ud[1] ?
+                               onum : AA64VSExecMerge_ud[1];'''
 
         iop = ArmInstObjParams(name, 'VS' + Name, 'SveUnaryPredOp',
                                {'code': code, 'op_class': opClass}, [])
@@ -2686,7 +2735,9 @@ let {{
         }
 
         BHSD_WH(AA64VSMetaD1_ub) = onum;
-        VSNUM = onum < VSNUM ? onum : VSNUM;'''
+        AA64VSExecMeta_ud[0] = AA64VSExecMerge_ud[0];
+        AA64VSExecMeta_ud[1] = onum < AA64VSExecMerge_ud[1] ?
+                               onum : AA64VSExecMerge_ud[1];'''
 
         iop = ArmInstObjParams(name, 'VS' + Name, 'SveUnaryPredOp',
                                {'code': code, 'op_class': opClass}, [])
@@ -2756,7 +2807,9 @@ let {{
         }
 
         BHSD_WH(AA64VSMetaD1_ub) = onum;
-        VSNUM = onum < VSNUM ? onum : VSNUM;'''
+        AA64VSExecMeta_ud[0] = AA64VSExecMerge_ud[0];
+        AA64VSExecMeta_ud[1] = onum < AA64VSExecMerge_ud[1] ?
+                               onum : AA64VSExecMerge_ud[1];'''
 
         iop = ArmInstObjParams(name, 'VS' + Name,
                 'SveBinImmPredOp' if predType != PredType.NONE
@@ -2793,7 +2846,7 @@ let {{
         meta1 += 2;
         meta2 += 2;
 
-        inum = inum < AA64VSPredNumE_uh[gp] ? inum : AA64VSPredNumE_uh[gp];
+        inum = inum < AA64VSPredNumEMG_uh[gp] ? inum : AA64VSPredNumEMG_uh[gp];
 
         for (unsigned i = 0; i < inum; ++i) {
             int64_t srcElem1 = VSUnpackBytes(psrc1, meta1[0]);
@@ -2808,8 +2861,13 @@ let {{
             PDest_ub[i] = destElem;
         }
 
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = inum;
-        VSNUM = inum < VSNUM ? inum : VSNUM;
+        AA64VSExecMeta_ud[0] = AA64VSExecMerge_ud[0];
+        AA64VSExecMeta_ud[1] = inum < AA64VSExecMerge_ud[1] ?
+                               inum : AA64VSExecMerge_ud[1];
         CondCodesNZ = (destPred.firstActive(tmpPred, eCount) << 1) |
                       destPred.noneActive(tmpPred, eCount);
         CondCodesC = !destPred.lastActive(tmpPred, eCount);
@@ -2845,7 +2903,7 @@ let {{
         unsigned inum = BHSD_RH(meta1);
         meta1 += 2;
 
-        inum = inum < AA64VSPredNumE_uh[gp] ? inum : AA64VSPredNumE_uh[gp];
+        inum = inum < AA64VSPredNumEMG_uh[gp] ? inum : AA64VSPredNumEMG_uh[gp];
 
         for (unsigned i = 0; i < inum; i++) {
             int64_t srcElem1 = VSUnpackBytes(psrc1, meta1[0]);
@@ -2858,8 +2916,13 @@ let {{
             PDest_ub[i] = destElem;
         }
 
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = inum;
-        VSNUM = inum < VSNUM ? inum : VSNUM;
+        AA64VSExecMeta_ud[0] = AA64VSExecMerge_ud[0];
+        AA64VSExecMeta_ud[1] = inum < AA64VSExecMerge_ud[1] ?
+                               inum : AA64VSExecMerge_ud[1];
         CondCodesNZ = (destPred.firstActive(tmpPred, eCount) << 1) |
                       destPred.noneActive(tmpPred, eCount);
         CondCodesC = !destPred.lastActive(tmpPred, eCount);
@@ -2895,7 +2958,9 @@ let {{
         }
 
         XDest = destElem;
-        VSNUM = inum < VSNUM ? inum : VSNUM;
+        AA64VSExecMeta_ud[0] = AA64VSExecMerge_ud[0];
+        AA64VSExecMeta_ud[1] = inum < AA64VSExecMerge_ud[1] ?
+                               inum : AA64VSExecMerge_ud[1];
         ''' % {'op': op, 'identity': identity}
         iop = ArmInstObjParams(name, 'VS' + Name, 'SveReducOp',
                                {'code': code, 'op_class': opClass}, [])
@@ -2941,7 +3006,9 @@ let {{
         }
 
         BHSD_WH(AA64VSMetaD1_ub) = onum;
-        VSNUM = onum < VSNUM ? onum : VSNUM;'''
+        AA64VSExecMeta_ud[0] = AA64VSExecMerge_ud[0];
+        AA64VSExecMeta_ud[1] = onum < AA64VSExecMerge_ud[1] ?
+                               onum : AA64VSExecMerge_ud[1];'''
 
         iop = ArmInstObjParams('vindex', 'VSVIndex'+fmt, 'SveIndex'+fmt+'Op',
             {'code': code, 'op_class': 'SimdAluOp'})
@@ -2960,11 +3027,12 @@ let {{
     def vsRNum(clear):
         global header_output, exec_output, decoders
         code = sveEnabledCheckCode + '''
-        XDest = VSNUM;'''
+        XDest = AA64VSExecMerge_ud[1];'''
 
         if (clear):
             code  += '''
-        VSNUM = 0x1FFFFFFF;'''
+        AA64VSExecMeta_ud[0] = AA64VSExecMerge_ud[0];
+        AA64VSExecMeta_ud[1] = 0x1FFFFFFF;'''
 
         if clear:
             iop = ArmInstObjParams('vrcnum' , 'VSVRCNum',
@@ -2992,6 +3060,9 @@ let {{
         auto auxGpOp = tmpPredC.as<Element>();
         for (unsigned i = 0; i < eCount; i++) {
             auxGpOp[i] = GpOp_x[i];
+        }
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
         }
         AA64VSPredNumE_uh[dest] = eCount;
         for (unsigned i = 0; i < eCount; i++) {
@@ -3058,6 +3129,9 @@ let {{
         for (unsigned i = 0; i < eCount; ++i)
             tmpPred[i] = GpOp_x[i];
         destPred.reset();
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = eCount;
         for (unsigned i = 0; i < eCount; i++) {
             const Element& srcElem1 = AA64FpOp1_x[i];
@@ -3183,6 +3257,9 @@ let {{
                 xc->tcBase());
         unsigned predCount = sveDecodePredCount(imm, eCount);
         destPred.reset();
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = eCount;
         for (unsigned i = 0; i < eCount; i++) {
             PDest_x[i] = (i < predCount);
@@ -3223,6 +3300,9 @@ let {{
         for (unsigned i = 0; i < eCount; ++i)
             tmpPred[i] = GpOp_x[i];
         destPred.reset();
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = eCount;
         for (unsigned i = 0; i < eCount; ++i) {
             %(srcType)s srcElem1 = (%(srcType)s) AA64FpOp1_x[i];
@@ -3269,6 +3349,9 @@ let {{
         for (unsigned i = 0; i < eCount; ++i)
             tmpPred[i] = GpOp_x[i];
         destPred.reset();
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = eCount;
         for (unsigned i = 0; i < eCount; ++i) {
             Element srcElem1 = AA64FpOp1_x[i];
@@ -3353,6 +3436,9 @@ let {{
         for (unsigned i = 0; i < eCount; ++i) {
             auxGpOp[i] = GpOp_ub[i];
         }
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = eCount;
         for (unsigned i = 0; i < eCount; ++i) {
             bool element = POp1_ub[i] == 1;
@@ -3407,6 +3493,9 @@ let {{
         for (unsigned i = 0; i < eCount; ++i) {
             auxGpOp[i] = GpOp_ub[i];
         }
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = eCount;
         for (unsigned i = 0; i < eCount; ++i) {
             if (auxGpOp[i]) {'''
@@ -3445,6 +3534,9 @@ let {{
         unsigned eCount = ArmStaticInst::getCurSveVecLen<uint8_t>(
                 xc->tcBase());
         bool last = POp1_ub.lastActive(GpOp_ub, eCount);
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = eCount;
         for (unsigned i = 0; i < eCount; i++) {
             if (!last) {
@@ -3563,6 +3655,9 @@ let {{
             }
         }
         int next = last + 1;
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = eCount;
         while (next < eCount && GpOp_x[next] == 0) {
             next++;
@@ -3603,6 +3698,9 @@ let {{
             if (auxGpOp[i] && first == -1) {
                 first = i;
             }
+        }
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
         }
         AA64VSPredNumE_uh[dest] = eCount;
         for (int i = 0; i < eCount; ++i) {
@@ -3676,6 +3774,9 @@ let {{
             auxOp1[i] = AA64FpOp1_xs[i];
         }'''
         code += '''
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = eCount;
         for (int i = 0; i < eCount; ++i) {'''
         if regType == SrcRegType.Predicate:
@@ -3901,6 +4002,9 @@ let {{
         for (unsigned i = 0; i < eCount; ++i) {
             uint8_t v = POp1_x.getRaw(i);
             auxPOp1.setRaw(i, v);
+        }
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
         }
         AA64VSPredNumE_uh[dest] = eCount;
         PDest_x[0] = 0;'''
@@ -5328,6 +5432,9 @@ let {{
     pfalseCode = '''
         unsigned eCount = ArmStaticInst::getCurSveVecLen<uint8_t>(
                 xc->tcBase());
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = eCount;
         PDest_ub[0] = 0;
         destPred.reset();
@@ -5359,6 +5466,9 @@ let {{
     rdffrUnpredCode = '''
         unsigned eCount = ArmStaticInst::getCurSveVecLen<uint8_t>(
                 xc->tcBase());
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = eCount;
         for (unsigned i = 0; i < eCount; i++) {
             PDest_ub[i] = Ffr_ub[i];
@@ -5369,6 +5479,9 @@ let {{
     rdffrPredCode = '''
         unsigned eCount = ArmStaticInst::getCurSveVecLen<uint8_t>(
                 xc->tcBase());
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = eCount;
         for (unsigned i = 0; i < eCount; i++) {
             if (GpOp_ub[i]) {
@@ -5779,6 +5892,9 @@ let {{
                 auxPDest[(2 * i + 1) * sz + j] = POp2_pb[s * sz + j];
             }
         }
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = eCount * sz;
         for (unsigned i = 0; i < eCount * sz; i++) {
             PDest_pb[i] = auxPDest[i];
@@ -6000,6 +6116,9 @@ let {{
                 }
             }
         }
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
+        }
         AA64VSPredNumE_uh[dest] = eCount * sz;
         for (unsigned i = 0; i < eCount * sz; i++) {
             PDest_pb[i] = auxPDest[i];
@@ -6082,6 +6201,9 @@ let {{
                 auxPDest[(2 * i) * sz + j] = POp1_pb[s * sz + j];
                 auxPDest[(2 * i + 1) * sz + j] = POp2_pb[s * sz + j];
             }
+        }
+        for (int i = 0; i < MaxNumPreds; i++) {
+            AA64VSPredNumE_uh[i] = AA64VSPredNumEMG_uh[i];
         }
         AA64VSPredNumE_uh[dest] = eCount * sz;
         for (unsigned i = 0; i < eCount * sz; i++) {
