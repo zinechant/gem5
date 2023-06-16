@@ -2000,7 +2000,8 @@ let {{
 
         if (types):
             code += '''
-        assert((sizeof(Element) << 3) >= destw);
+        assert((sizeof(Element) << 3) >= destw &&
+               "OOO can lead to mispredict branches, failing the check");
         uint32_t eCount = ArmStaticInst::getCurSveVecLen<Element>(
             xc->tcBase());
         for (; elems < eCount && bits < AA64VSStreamBitsMG_ud[sid];
@@ -2072,7 +2073,7 @@ let {{
             AA64VSStreamAddr2_ud[i] = AA64VSStreamAddr2MG_ud[i];
             AA64VSStreamBits_ud[i] = AA64VSStreamBitsMG_ud[i];
         }
-        for (int i = 0; i < MaxNumStreams * 4; i++) {
+        for (int i = 0; i < MaxNumStreams * 8; i++) {
             AA64VSStreamState_ub[i] = AA64VSStreamStateMG_ub[i];
         }
 
@@ -2192,7 +2193,7 @@ let {{
             AA64VSStreamAddr2_ud[i] = AA64VSStreamAddr2MG_ud[i];
             AA64VSStreamBits_ud[i] = AA64VSStreamBitsMG_ud[i];
         }
-        for (int i = 0; i < MaxNumStreams * 4; i++) {
+        for (int i = 0; i < MaxNumStreams * 8; i++) {
             AA64VSStreamState_ub[i] = AA64VSStreamStateMG_ub[i];
         }
         AA64VSStreamAddr1_ud[sid] = (uint64_t)pdata;
@@ -2234,7 +2235,7 @@ let {{
             AA64VSStreamAddr1_ud[i] = AA64VSStreamAddr1MG_ud[i];
             AA64VSStreamBits_ud[i] = AA64VSStreamBitsMG_ud[i];
         }
-        for (int i = 0; i < MaxNumStreams * 4; i++) {
+        for (int i = 0; i < MaxNumStreams * 8; i++) {
             AA64VSStreamState_ub[i] = AA64VSStreamStateMG_ub[i];
         }
         AA64VSStreamAddr1_ud[sid] = (uint64_t)(SBOffset + XOp1);

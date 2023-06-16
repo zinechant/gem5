@@ -108,7 +108,7 @@ const int STREAMADDR2 = VECMETAOFFSET + 35;
 // Stream Bits. Raw 64bit unsigned integers for each stream.
 const int STREAMBITS = VECMETAOFFSET + 36;
 
-//  8b pos in byte. 8b StreamType.
+//  Common first 2 bytes: 8b pos in byte. 8b StreamType. Then:
 //          8b fix width bytes.     8b fix width bytes. 32b number of elements
 //          8b max symbol bits.     8b max code bits.   32b number of elements
 //          64.                     64.                 32b number of elements
